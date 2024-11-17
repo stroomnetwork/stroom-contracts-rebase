@@ -11,16 +11,19 @@ import "blockchain-tools/src/BitcoinNetworkEncoder.sol";
 import "./lib/ValidatorMessageReceiver.sol";
 import "./lib/ValidatorRegistry.sol";
 
-import "./IStBTC.sol";
-
 contract stBTC is 
     ERC20Upgradeable, 
     ValidatorMessageReceiver, 
     BitcoinUtils, 
-    PausableUpgradeable, 
-    IStBTC 
+    PausableUpgradeable 
 {
     BitcoinNetworkEncoder.Network public network;
+
+    struct MintInvoice {
+        bytes32 btcDepositId;
+        address recipient;
+        uint256 amount;
+    }
 
     uint256 public constant DUST_LIMIT = 546; // sat
     uint256 public constant BTC = 1e8; // sat
@@ -32,13 +35,35 @@ contract stBTC is
     uint256 public redeemCounter;
     uint256 public totalSupplyUpdateNonce;
 
-    address public minter;
-
-    uint256 private totalPooledBTC;
-    uint256 private totalShares;    
+    uint256 private _totalPooledBTC;
+    uint256 private _totalShares;    
 
     mapping(bytes32 => bool) public btcDepositIds;
     mapping(address => uint256) private shares; 
+
+    event MintBtcEvent(
+        address indexed _to,
+        uint256 _value,
+        bytes32 _btcDepositId
+    );
+
+    event RedeemBtcEvent(
+        address indexed _from,
+        string _BTCAddress,
+        uint256 _value,
+        uint256 _id
+    );
+
+    event TotalSupplyUpdatedEvent(
+        uint256 _nonce,
+        uint256 _totalBTCSupply,
+        uint256 _totalShares
+    );
+
+    event Rebase(
+        uint256 newTotalPooledBTC, 
+        uint256 newTotalShares
+    );
 
     function initialize(
         BitcoinNetworkEncoder.Network _network,
@@ -49,29 +74,82 @@ contract stBTC is
         ValidatorMessageReceiver.initialize(_validatorRegistry);
 
         minWithdrawAmount = 7_000; // 0.00007 BTC
+        
+        _totalShares = 0;
 
         redeemCounter = 0;
 
         network = _network;
     }
 
+    // ========= Override Functions ======
+
     function decimals() public pure override returns (uint8) {
         return 8;
     }
 
     function totalSupply() public view override returns (uint256) {
-        return totalPooledBTC;
+        return _totalPooledBTC;
+    }
+
+    function totalShares() public view returns (uint256) {
+        return _totalShares;
     }
 
     function balanceOf(address account) public view override returns (uint256) {
-        if (totalShares == 0) {
+        if (_totalShares == 0) {
             return 0;
         }
-        return (shares[account] * totalPooledBTC) / totalShares;
+        return (shares[account] * _totalPooledBTC) / _totalShares;
     }
 
     function getShares(address account) external view returns (uint256) {
         return shares[account];
+    }
+
+    /**
+    * @dev Internal function for updating the balance of shares and totalShares during mint, burn, transfer operations.
+    * @param from The sender's address (or address(0) for mint).
+    * @param to The recipient's address (or address(0) for burn).
+    * @param value The number of tokens that are transferred/exchanged/burned.
+    */
+    function _update(address from, address to, uint256 value) internal override {
+        if (from == address(0)) {
+            uint256 sharesToMint = (_totalShares == 0 || _totalPooledBTC == 0)
+                ? value 
+                : (value * _totalShares) / _totalPooledBTC;
+
+            _totalPooledBTC += value;
+            _totalShares += sharesToMint;
+
+            unchecked {
+                shares[to] += sharesToMint;
+            }
+
+            emit Rebase(_totalPooledBTC, _totalShares);
+        } else {
+            uint256 fromBalance = balanceOf(from);
+            require(fromBalance >= value, "INSUFFICIENT_BALANCE");
+
+            uint256 sharesToTransfer = (value * _totalShares) / _totalPooledBTC;
+
+            if (to == address(0)) {
+                _totalPooledBTC -= value;
+                _totalShares -= sharesToTransfer;
+
+                unchecked {
+                    shares[from] -= sharesToTransfer;
+                }
+
+                emit Rebase(_totalPooledBTC, _totalShares);
+            } else {
+                unchecked {
+                    shares[from] -= sharesToTransfer;
+                    shares[to] += sharesToTransfer;
+                }
+            }
+        }
+        emit Transfer(from, to, value);
     }
 
     // ========= Minting Signature ======
@@ -185,7 +263,7 @@ contract stBTC is
      * Anyone can use if they have valid signature from the owner.
      */
     function mint(
-        IStBTC.MintInvoice calldata invoice,
+        MintInvoice calldata invoice,
         bytes calldata signature
     )
         public
@@ -221,19 +299,8 @@ contract stBTC is
         );
         btcDepositIds[_btcDepositId] = true;
 
-        uint256 sharesToMint;
-        if (totalShares == 0 || totalPooledBTC == 0) {
-            sharesToMint = _amount;
-        } else {
-            sharesToMint = (_amount * totalShares) / totalPooledBTC;
-        }
+        _mint(_recipient, _amount);
 
-        totalPooledBTC += _amount;
-        totalShares += sharesToMint;
-
-        shares[_recipient] += sharesToMint;
-
-        emit Rebase(totalPooledBTC, totalShares);
         emit MintBtcEvent(_recipient, _amount, _btcDepositId);
     }
 
@@ -255,9 +322,9 @@ contract stBTC is
         require(btcDepositIds[rewardId] == false, "UPDATE_ALREADY_PROCESSED");
         btcDepositIds[rewardId] = true;
 
-        totalPooledBTC += delta;
+        _totalPooledBTC += delta;
 
-        emit TotalSupplyUpdatedEvent(nonce, totalPooledBTC, totalShares);
+        emit TotalSupplyUpdatedEvent(nonce, _totalPooledBTC, _totalShares);
     }
 
     function mintRewards(
@@ -287,9 +354,9 @@ contract stBTC is
         require(btcDepositIds[rewardId] == false, "UPDATE_ALREADY_PROCESSED");
         btcDepositIds[rewardId] = true;
 
-        totalPooledBTC += delta;
+        _totalPooledBTC += delta;
         
-        emit TotalSupplyUpdatedEvent(nonce, totalPooledBTC, totalShares);
+        emit TotalSupplyUpdatedEvent(nonce, _totalPooledBTC, _totalShares);
     }
 
     function redeem(
@@ -306,25 +373,9 @@ contract stBTC is
         );
 
         // balance check in the following function
-        _burn(_amount);
+        _burn(msg.sender, _amount);
 
         redeemCounter += 1;
         emit RedeemBtcEvent(msg.sender, BTCAddress, _amount, redeemCounter);
-    }
-
-    function _burn(uint256 _amount) internal {
-        uint256 userBalance = balanceOf(msg.sender);
-
-        require(_amount <= userBalance, "BURN_AMOUNT_EXCEEDS_BALANCE");
-
-        uint256 sharesToBurn = (_amount * totalShares) / totalPooledBTC;
-
-        totalPooledBTC -= _amount;
-        totalShares -= sharesToBurn;
-
-        shares[msg.sender] -= sharesToBurn;
-        
-        emit Rebase(totalPooledBTC, totalShares);     
-        emit Transfer(msg.sender, address(0), _amount);
     }
 }
