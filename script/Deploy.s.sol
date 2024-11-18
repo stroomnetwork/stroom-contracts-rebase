@@ -4,11 +4,11 @@ pragma solidity ^0.8.27;
 import "forge-std/Script.sol";
 
 import "../src/stBTC.sol";
-import "../src/IStBTC.sol";
 import "../src/wstBTC.sol";
 import "../src/lib/UserActivator.sol";
 import "../src/lib/ValidatorRegistry.sol";
 import "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
+
 import { Strings as OpenZeppelinStrings } from "@openzeppelin/contracts/utils/Strings.sol";
 import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
@@ -37,7 +37,7 @@ contract DeployScript is Script {
         stBTC stBtcContract = stBTC(address(stBtcProxy));
 
         // Deploy wstBTC
-        wstBTC wstBtcContract = new wstBTC(IStBTC(address(stBtcContract)));
+        wstBTC wstBtcContract = new wstBTC(address(stBtcContract));
 
         UserActivator activator = new UserActivator();
 

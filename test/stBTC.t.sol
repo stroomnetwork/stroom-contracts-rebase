@@ -51,7 +51,7 @@ contract STBTCTest is Test {
         token = stBTC(address(stBtcProxy));
 
         // Deploy wstBTC
-        wtoken = new wstBTC(IStBTC(address(token)));
+        wtoken = new wstBTC(address(token));
 
         alice = makeAddr("alice");
         bob = makeAddr("bob");

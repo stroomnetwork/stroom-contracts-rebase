@@ -10,57 +10,57 @@ contract wstBTC is ERC20Permit {
     /**
      * @param _stBTC address of the stBTC token to wrap
      */
-    constructor(IStBTC _stBTC)
+    constructor(address _stBTC)
         ERC20("Wrapped Stroom Bitcoin", "wstBTC")
         ERC20Permit("Wrapped Stroom Bitcoin")
     {
-        stBTC = _stBTC;
+        stBTC = IStBTC(_stBTC);
     }
 
     /**
      * @notice Wraps stBTC into wstBTC.
-     * @param _stBTCAmount Amount of stBTC to wrap.
+     * @param stBTCAmount Amount of stBTC to wrap.
      * @return Amount of wstBTC minted.
      */
-    function wrap(uint256 _stBTCAmount) external returns (uint256) {
-        require(_stBTCAmount > 0, "wstBTC: Cannot wrap zero stBTC");
+    function wrap(uint256 stBTCAmount) external returns (uint256) {
+        require(stBTCAmount > 0, "wstBTC: Cannot wrap zero stBTC");
 
-        uint256 wstBTCAmount = getSharesByPooledBTC(_stBTCAmount);
+        uint256 wstBTCAmount = getSharesByPooledBTC(stBTCAmount);
         _mint(msg.sender, wstBTCAmount);
 
-        stBTC.transferFrom(msg.sender, address(this), _stBTCAmount);
+        stBTC.transferFrom(msg.sender, address(this), stBTCAmount);
         return wstBTCAmount;
     }
 
     /**
      * @notice Unwraps wstBTC back into stBTC.
-     * @param _wstBTCAmount Amount of wstBTC to unwrap.
+     * @param wstBTCAmount Amount of wstBTC to unwrap.
      * @return Amount of stBTC returned.
      */
-    function unwrap(uint256 _wstBTCAmount) external returns (uint256) {
-        require(_wstBTCAmount > 0, "wstBTC: Cannot unwrap zero wstBTC");
+    function unwrap(uint256 wstBTCAmount) external returns (uint256) {
+        require(wstBTCAmount > 0, "wstBTC: Cannot unwrap zero wstBTC");
 
-        uint256 stBTCAmount = getPooledBTCByShares(_wstBTCAmount);
-        _burn(msg.sender, _wstBTCAmount);
+        uint256 stBTCAmount = getPooledBTCByShares(wstBTCAmount);
+        _burn(msg.sender, wstBTCAmount);
 
         stBTC.transfer(msg.sender, stBTCAmount);
         return stBTCAmount;
     }
 
-    function getSharesByPooledBTC(uint256 _btcAmount) public view returns (uint256) {
+    function getSharesByPooledBTC(uint256 btcAmount) public view returns (uint256) {
         uint256 totalShares = stBTC.totalShares();
         uint256 totalPooledBTC = stBTC.totalSupply(); 
         require(totalShares > 0 && totalPooledBTC > 0, "wstBTC: Invalid totalShares or totalPooledBTC");
 
-        return (_btcAmount * totalShares) / totalPooledBTC;
+        return (btcAmount * totalShares) / totalPooledBTC;
     }
 
-    function getPooledBTCByShares(uint256 _sharesAmount) public view returns (uint256) {
+    function getPooledBTCByShares(uint256 sharesAmount) public view returns (uint256) {
         uint256 totalShares = stBTC.totalShares();
         uint256 totalPooledBTC = stBTC.totalSupply();
         require(totalShares > 0 && totalPooledBTC > 0, "wstBTC: Invalid totalShares or totalPooledBTC");
 
-        return (_sharesAmount * totalPooledBTC) / totalShares;
+        return (sharesAmount * totalPooledBTC) / totalShares;
     }
 
     /**
