@@ -79,6 +79,8 @@ contract stBTC is
 
         redeemCounter = 0;
 
+        totalSupplyUpdateNonce = 0;
+
         network = _network;
     }
 
@@ -305,8 +307,8 @@ contract stBTC is
     }
 
     function mintRewards(
-        uint nonce,
-        uint delta
+        uint256 nonce,
+        uint256 delta
     ) external whenNotPaused onlyOwner {
         require(
             nonce == totalSupplyUpdateNonce,
