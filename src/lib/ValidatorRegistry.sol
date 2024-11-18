@@ -11,27 +11,21 @@ contract ValidatorRegistry is Ownable, Bip340Ecrec {
     bytes32 public jointPublicKey;
 
     // Constant for the update validator public key message
-    bytes constant public MESSAGE_UPDATE_JOINT_PUBLIC_KEY = "STROOM_UPDATE_JOINT_PUBLIC_KEY";
+    bytes public constant MESSAGE_UPDATE_JOINT_PUBLIC_KEY = "STROOM_UPDATE_JOINT_PUBLIC_KEY";
 
     // Event to log the update of the validator public key
     event JointPublicKeyUpdated(bytes32 newjointPublicKey);
 
-    constructor() Ownable(msg.sender) {
-    }
+    constructor() Ownable(msg.sender) {}
 
     // Function to update the validator public key
-    function setJointPublicKey(
-        bytes32 _jointPublicKey
-    ) public onlyOwner {
+    function setJointPublicKey(bytes32 _jointPublicKey) public onlyOwner {
         jointPublicKey = _jointPublicKey;
         emit JointPublicKeyUpdated(_jointPublicKey);
     }
 
     // Function to update the validator public key with a signature
-    function setJointPublicKeySigned(
-        bytes32 _jointPublicKey,
-        bytes calldata signature
-    ) public {
+    function setJointPublicKeySigned(bytes32 _jointPublicKey, bytes calldata signature) public {
         require(
             validateMessage(MESSAGE_UPDATE_JOINT_PUBLIC_KEY, abi.encodePacked(_jointPublicKey), signature),
             "ValidatorRegistry: INVALID_SIGNATURE"
@@ -46,27 +40,22 @@ contract ValidatorRegistry is Ownable, Bip340Ecrec {
     }
 
     // Function to validate a message
-    function validateMessageHash(
-        bytes32 hash,
-        bytes calldata signature
-    ) public view returns (bool) {
-        require(
-            jointPublicKey != 0,
-            "ValidatorRegistry: NO_JOINT_PUBLIC_KEY"
-        );
+    function validateMessageHash(bytes32 hash, bytes calldata signature) public view returns (bool) {
+        require(jointPublicKey != 0, "ValidatorRegistry: NO_JOINT_PUBLIC_KEY");
 
         // slice signature in two bytes32 blocks, rx and s
-        uint256 rx = uint256(bytes32(signature[0 : 32]));
-        uint256 s = uint256(bytes32(signature[32 : 64]));
+        uint256 rx = uint256(bytes32(signature[0:32]));
+        uint256 s = uint256(bytes32(signature[32:64]));
 
         return verify(uint256(jointPublicKey), rx, s, hash);
     }
     // Function to validate a message
-    function validateMessage(
-        bytes memory prefix,
-        bytes memory data,
-        bytes calldata signature
-    ) public view returns (bool) {
+
+    function validateMessage(bytes memory prefix, bytes memory data, bytes calldata signature)
+        public
+        view
+        returns (bool)
+    {
         bytes32 hash = getMessageHash(prefix, data);
         return validateMessageHash(hash, signature);
     }

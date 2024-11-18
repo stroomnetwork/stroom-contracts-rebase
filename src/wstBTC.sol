@@ -10,10 +10,7 @@ contract wstBTC is ERC20Permit {
     /**
      * @param _stBTC address of the stBTC token to wrap
      */
-    constructor(address _stBTC)
-        ERC20("Wrapped Stroom Bitcoin", "wstBTC")
-        ERC20Permit("Wrapped Stroom Bitcoin")
-    {
+    constructor(address _stBTC) ERC20("Wrapped Stroom Bitcoin", "wstBTC") ERC20Permit("Wrapped Stroom Bitcoin") {
         stBTC = IStBTC(_stBTC);
     }
 
@@ -49,7 +46,7 @@ contract wstBTC is ERC20Permit {
 
     function getSharesByPooledBTC(uint256 btcAmount) public view returns (uint256) {
         uint256 totalShares = stBTC.totalShares();
-        uint256 totalPooledBTC = stBTC.totalSupply(); 
+        uint256 totalPooledBTC = stBTC.totalSupply();
         require(totalShares > 0 && totalPooledBTC > 0, "wstBTC: Invalid totalShares or totalPooledBTC");
 
         return (btcAmount * totalShares) / totalPooledBTC;

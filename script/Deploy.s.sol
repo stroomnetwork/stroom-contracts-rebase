@@ -9,15 +9,15 @@ import "../src/lib/UserActivator.sol";
 import "../src/lib/ValidatorRegistry.sol";
 import "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
 
-import { Strings as OpenZeppelinStrings } from "@openzeppelin/contracts/utils/Strings.sol";
-import { TransparentUpgradeableProxy } from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {Strings as OpenZeppelinStrings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract DeployScript is Script {
     BitcoinNetworkEncoder.Network private network;
 
     function setUp() public {
         network = BitcoinNetworkEncoder.Network(vm.envUint("BITCOIN_NETWORK"));
-        console.log("Deploying with Bitcoin network:", uint(network));
+        console.log("Deploying with Bitcoin network:", uint256(network));
     }
 
     function run() public {
@@ -33,7 +33,8 @@ contract DeployScript is Script {
 
         // Deploy stBTC proxy
         bytes memory stBtcData = abi.encodeWithSelector(stBTC.initialize.selector, network, vr);
-        TransparentUpgradeableProxy stBtcProxy = new TransparentUpgradeableProxy(address(stBtcImplementation), owner, stBtcData);
+        TransparentUpgradeableProxy stBtcProxy =
+            new TransparentUpgradeableProxy(address(stBtcImplementation), owner, stBtcData);
         stBTC stBtcContract = stBTC(address(stBtcProxy));
 
         // Deploy wstBTC
@@ -46,9 +47,25 @@ contract DeployScript is Script {
         console.log();
         console.log("Deployed contract addresses as envs:");
         console.log();
-        console.logString(string.concat("APP_ETH_STBTC_ADDRESS=", OpenZeppelinStrings.toHexString(uint256(uint160(address(stBtcContract))))));
-        console.logString(string.concat("APP_ETH_WSTBTC_ADDRESS=", OpenZeppelinStrings.toHexString(uint256(uint160(address(wstBtcContract))))));
-        console.logString(string.concat("APP_ETH_VALIDATOR_REGISTRY_ADDRESS=", OpenZeppelinStrings.toHexString(uint256(uint160(address(vr))))));
-        console.logString(string.concat("APP_ETH_USER_ACTIVATOR_ADDRESS=", OpenZeppelinStrings.toHexString(uint256(uint160(address(activator))))));
+        console.logString(
+            string.concat(
+                "APP_ETH_STBTC_ADDRESS=", OpenZeppelinStrings.toHexString(uint256(uint160(address(stBtcContract))))
+            )
+        );
+        console.logString(
+            string.concat(
+                "APP_ETH_WSTBTC_ADDRESS=", OpenZeppelinStrings.toHexString(uint256(uint160(address(wstBtcContract))))
+            )
+        );
+        console.logString(
+            string.concat(
+                "APP_ETH_VALIDATOR_REGISTRY_ADDRESS=", OpenZeppelinStrings.toHexString(uint256(uint160(address(vr))))
+            )
+        );
+        console.logString(
+            string.concat(
+                "APP_ETH_USER_ACTIVATOR_ADDRESS=", OpenZeppelinStrings.toHexString(uint256(uint160(address(activator))))
+            )
+        );
     }
 }

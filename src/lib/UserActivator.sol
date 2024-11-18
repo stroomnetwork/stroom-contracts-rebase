@@ -21,21 +21,18 @@ contract UserActivator is BTCDepositAddressDeriver, Ownable {
      * Reverts if the user address is already activated.
      */
     function activateUser(address _userAddress) public {
-        require(
-            activatedAddresses[_userAddress] == false,
-            "User is already activated"
-        );
+        require(activatedAddresses[_userAddress] == false, "User is already activated");
 
         activatedAddresses[_userAddress] = true;
 
         emit UserAddressActivated(_userAddress);
     }
 
-    function setSeed(
-        string calldata _btcAddr1,
-        string calldata _btcAddr2,
-        BitcoinNetworkEncoder.Network _network
-    ) public override onlyOwner {
+    function setSeed(string calldata _btcAddr1, string calldata _btcAddr2, BitcoinNetworkEncoder.Network _network)
+        public
+        override
+        onlyOwner
+    {
         BTCDepositAddressDeriver.setSeed(_btcAddr1, _btcAddr2, _network);
     }
 }

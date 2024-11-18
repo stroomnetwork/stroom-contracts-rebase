@@ -13,21 +13,14 @@ contract ValidatorMessageReceiver is OwnableUpgradeable, Bip340Ecrec {
     ValidatorRegistry public validatorRegistry;
 
     // Update the constructor to accept the ValidatorRegistry contract
-    function initialize(
-        ValidatorRegistry _validatorRegistry
-    ) public onlyInitializing {
+    function initialize(ValidatorRegistry _validatorRegistry) public onlyInitializing {
         OwnableUpgradeable.__Ownable_init(msg.sender);
         validatorRegistry = _validatorRegistry;
     }
 
-    modifier onlyValidator(
-        bytes memory prefix,
-        bytes memory data,
-        bytes calldata signature
-    ) {
+    modifier onlyValidator(bytes memory prefix, bytes memory data, bytes calldata signature) {
         require(
-            validatorRegistry.validateMessage(prefix, data, signature),
-            "ValidatorMessageReceiver: INVALID_SIGNATURE"
+            validatorRegistry.validateMessage(prefix, data, signature), "ValidatorMessageReceiver: INVALID_SIGNATURE"
         );
         _;
     }
