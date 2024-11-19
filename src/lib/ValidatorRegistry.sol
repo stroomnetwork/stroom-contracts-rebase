@@ -49,8 +49,8 @@ contract ValidatorRegistry is Ownable, Bip340Ecrec {
 
         return verify(uint256(jointPublicKey), rx, s, hash);
     }
-    // Function to validate a message
 
+    // Function to validate a message
     function validateMessage(bytes memory prefix, bytes memory data, bytes calldata signature)
         public
         view

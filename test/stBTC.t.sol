@@ -5,7 +5,6 @@ import "forge-std/Test.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ERC1967Utils} from "openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import {BitcoinNetworkEncoder} from "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import "../src/stBTC.sol";
 
@@ -36,7 +35,7 @@ contract STBTCTest is Test {
         vr = new ValidatorRegistry();
         vr.setJointPublicKey(hex"4d03b19bf5cafc2c77fcd66f56c55946d7fcbc0855342a6bdf8e37b0a9986e57");
 
-        admin = address(this);
+        admin = msg.sender;
 
         // Deploy stBTC implementation
         stBTC stBtcImplementation = new stBTC();
@@ -410,6 +409,34 @@ contract STBTCTest is Test {
         assertEq(token.balanceOf(bob), 0, "Bob's balance should remain 0");
     }
 
+    function testTransferFrom() public {
+        uint256 mintAmount = 10 * BTC;
+        uint256 transferAmount = 5 * BTC;
+
+        token.mint(mintAmount, alice, keccak256(abi.encodePacked("deposit1")));
+
+        uint256 initialBalanceAlice = token.balanceOf(alice);
+        assertEq(initialBalanceAlice, mintAmount, "Initial balance of Alice incorrect");
+
+        vm.prank(alice);
+        token.approve(bob, transferAmount);
+
+        uint256 allowance = token.allowance(alice, bob);
+        assertEq(allowance, transferAmount, "Allowance for Bob incorrect");
+
+        vm.prank(bob);
+        token.transferFrom(alice, bob, transferAmount);
+
+        uint256 finalBalanceAlice = token.balanceOf(alice);
+        assertEq(finalBalanceAlice, mintAmount - transferAmount, "Final balance of Alice incorrect");
+
+        uint256 finalBalanceBob = token.balanceOf(bob);
+        assertEq(finalBalanceBob, transferAmount, "Final balance of Bob incorrect");
+
+        uint256 finalAllowance = token.allowance(alice, bob);
+        assertEq(finalAllowance, 0, "Final allowance for Bob incorrect");
+    }
+
     function testBalanceOfandTotalSupply() public {
         uint256 mintAmountAlice = 10 * BTC;
         uint256 mintAmountBob = 5 * BTC;
@@ -577,9 +604,6 @@ contract STBTCTest is Test {
 
     function testFuzzMintTransferRedeem(uint256 mintAmount) public {
         vm.assume(mintAmount > token.minWithdrawAmount() * 2 && mintAmount < 21_000_000 * BTC);
-
-        address alice = makeAddr("alice");
-        address bob = makeAddr("bob");
 
         bytes32 depositId = keccak256(abi.encodePacked("aliceDeposit"));
         token.mint(mintAmount, alice, depositId);
