@@ -9,6 +9,8 @@ out/
 
 # Docs
 docs/
+broadcast/
+build/
 
 # Dotenv file
 .env

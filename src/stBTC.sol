@@ -205,37 +205,11 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
     }
 
     /**
-     * @dev Mints `_amount` of BTC to `_recipient` with a signature.
-     * Anyone can use if they have valid signature from the owner.
-     */
-    function mint(MintInvoice calldata invoice, bytes calldata signature)
-        public
-        whenNotPaused
-        onlyValidator(MESSAGE_MINT, encodeInvoice(invoice), signature)
-    {
-        _mint(invoice.amount, invoice.recipient, invoice.btcDepositId);
-    }
-
-    /**
-     * @dev Mint new tokens.
-     * @param _amount The amount of tokens to mint.
-     * @param _recipient The address that will receive the minted tokens.
-     * @param _btcDepositId The id of the BTC deposit = keccak256(txHash, vout)
-     */
-    function _mint(uint256 _amount, address _recipient, bytes32 _btcDepositId) internal {
-        require(_amount > 0, "MINT_AMOUNT_ZERO");
-        require(_amount < 21_000_000 * BTC, "MINT_AMOUNT_TOO_BIG");
-
-        require(_recipient != address(this), "MINT_TO_THE_CONTRACT_ADDRESS");
-
-        require(btcDepositIds[_btcDepositId] == false, "MINT_ALREADY_PROCESSED");
-        btcDepositIds[_btcDepositId] = true;
-
-        _mint(_recipient, _amount);
-
-        emit MintBtcEvent(_recipient, _amount, _btcDepositId);
-    }
-
+    * @notice Adds rewards to the total pooled BTC and updates the supply state.
+    * @dev This function is used to mint new rewards for the pool by increasing the `_totalPooledBTC`.
+    * @param nonce The current nonce for the total supply update, ensuring the correct order of updates.
+    * @param delta The amount of BTC to be added as rewards to the total pooled BTC.
+    */
     function mintRewards(uint256 nonce, uint256 delta) external whenNotPaused onlyOwner {
         require(nonce == totalSupplyUpdateNonce, "Invalid update total supply nonce");
         totalSupplyUpdateNonce += 1;
@@ -253,6 +227,27 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
         emit TotalSupplyUpdatedEvent(nonce, _totalPooledBTC, _totalShares);
     }
 
+    // ========= Validators-only ========
+
+    /**
+     * @dev Mints `_amount` of BTC to `_recipient` with a signature.
+     * Anyone can use if they have valid signature from the owner.
+     */
+    function mint(MintInvoice calldata invoice, bytes calldata signature)
+        public
+        whenNotPaused
+        onlyValidator(MESSAGE_MINT, encodeInvoice(invoice), signature)
+    {
+        _mint(invoice.amount, invoice.recipient, invoice.btcDepositId);
+    }
+
+    /**
+    * @notice Adds rewards to the total pooled BTC based on a signed validator message and updates the supply state.
+    * @dev This function allows secure minting of new rewards by requiring a valid validator signature.
+    * @param nonce The current nonce for the total supply update, ensuring the correct order of updates.
+    * @param delta The amount of BTC to be added as rewards to the total pooled BTC.
+    * @param signature The signed message from the validator set, validating the minting operation.
+    */
     function mintRewards(uint256 nonce, uint256 delta, bytes calldata signature)
         external
         whenNotPaused
@@ -274,6 +269,36 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
         emit TotalSupplyUpdatedEvent(nonce, _totalPooledBTC, _totalShares);
     }
 
+    // ========= Internal ========
+
+    /**
+     * @dev Mint new tokens.
+     * @param _amount The amount of tokens to mint.
+     * @param _recipient The address that will receive the minted tokens.
+     * @param _btcDepositId The id of the BTC deposit = keccak256(txHash, vout)
+     */
+    function _mint(uint256 _amount, address _recipient, bytes32 _btcDepositId) internal {
+        require(_amount > 0, "MINT_AMOUNT_ZERO");
+        require(_amount < 21_000_000 * BTC, "MINT_AMOUNT_TOO_BIG");
+
+        require(_recipient != address(this), "MINT_TO_THE_CONTRACT_ADDRESS");
+
+        require(btcDepositIds[_btcDepositId] == false, "MINT_ALREADY_PROCESSED");
+        btcDepositIds[_btcDepositId] = true;
+
+        _mint(_recipient, _amount);
+
+        emit MintBtcEvent(_recipient, _amount, _btcDepositId);
+    }
+
+    // ========= Public ========
+
+    /**
+    * @notice Redeems stBTC for its underlying Bitcoin by burning the specified amount of tokens.
+    * @dev This function allows users to convert their stBTC holdings back into Bitcoin.
+    * @param _amount The amount of stBTC to redeem for Bitcoin.
+    * @param BTCAddress The Bitcoin address to receive the redeemed BTC.
+    */
     function redeem(uint256 _amount, string calldata BTCAddress) public whenNotPaused {
         require(_amount >= minWithdrawAmount, "The sent value must be greater or equal to min withdraw amount");
         require(validateBitcoinAddress(network, BTCAddress), "The sent BTC address is not valid");
