@@ -205,11 +205,11 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
     }
 
     /**
-    * @notice Adds rewards to the total pooled BTC and updates the supply state.
-    * @dev This function is used to mint new rewards for the pool by increasing the `_totalPooledBTC`.
-    * @param nonce The current nonce for the total supply update, ensuring the correct order of updates.
-    * @param delta The amount of BTC to be added as rewards to the total pooled BTC.
-    */
+     * @notice Adds rewards to the total pooled BTC and updates the supply state.
+     * @dev This function is used to mint new rewards for the pool by increasing the `_totalPooledBTC`.
+     * @param nonce The current nonce for the total supply update, ensuring the correct order of updates.
+     * @param delta The amount of BTC to be added as rewards to the total pooled BTC.
+     */
     function mintRewards(uint256 nonce, uint256 delta) external whenNotPaused onlyOwner {
         require(nonce == totalSupplyUpdateNonce, "Invalid update total supply nonce");
         totalSupplyUpdateNonce += 1;
@@ -242,12 +242,12 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
     }
 
     /**
-    * @notice Adds rewards to the total pooled BTC based on a signed validator message and updates the supply state.
-    * @dev This function allows secure minting of new rewards by requiring a valid validator signature.
-    * @param nonce The current nonce for the total supply update, ensuring the correct order of updates.
-    * @param delta The amount of BTC to be added as rewards to the total pooled BTC.
-    * @param signature The signed message from the validator set, validating the minting operation.
-    */
+     * @notice Adds rewards to the total pooled BTC based on a signed validator message and updates the supply state.
+     * @dev This function allows secure minting of new rewards by requiring a valid validator signature.
+     * @param nonce The current nonce for the total supply update, ensuring the correct order of updates.
+     * @param delta The amount of BTC to be added as rewards to the total pooled BTC.
+     * @param signature The signed message from the validator set, validating the minting operation.
+     */
     function mintRewards(uint256 nonce, uint256 delta, bytes calldata signature)
         external
         whenNotPaused
@@ -294,11 +294,11 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
     // ========= Public ========
 
     /**
-    * @notice Redeems stBTC for its underlying Bitcoin by burning the specified amount of tokens.
-    * @dev This function allows users to convert their stBTC holdings back into Bitcoin.
-    * @param _amount The amount of stBTC to redeem for Bitcoin.
-    * @param BTCAddress The Bitcoin address to receive the redeemed BTC.
-    */
+     * @notice Redeems stBTC for its underlying Bitcoin by burning the specified amount of tokens.
+     * @dev This function allows users to convert their stBTC holdings back into Bitcoin.
+     * @param _amount The amount of stBTC to redeem for Bitcoin.
+     * @param BTCAddress The Bitcoin address to receive the redeemed BTC.
+     */
     function redeem(uint256 _amount, string calldata BTCAddress) public whenNotPaused {
         require(_amount >= minWithdrawAmount, "The sent value must be greater or equal to min withdraw amount");
         require(validateBitcoinAddress(network, BTCAddress), "The sent BTC address is not valid");
