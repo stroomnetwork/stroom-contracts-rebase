@@ -26,7 +26,7 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
     bytes public constant MESSAGE_MINT = "STROOM_MINT_INVOICE";
     bytes public constant MESSAGE_UPDATE_TOTAL_SUPPLY = "STROOM_UPDATE_TOTAL_SUPPLY";
 
-    uint256 public minWithdrawAmount; // 0.00002 BTC
+    uint256 public minWithdrawAmount;
     uint256 public redeemCounter;
     uint256 public totalSupplyUpdateNonce;
 
@@ -196,6 +196,7 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
     /**
      * @dev Mint new tokens.
      * Only the owner can call this function.
+     * TODO: delete this method before mainnet launch
      * @param _amount The amount of tokens to mint.
      * @param _recipient The address that will receive the minted tokens.
      * @param _btcDepositId The id of the BTC deposit = keccak256(txHash, vout)
