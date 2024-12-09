@@ -63,26 +63,26 @@ contract wstBTC is ERC20Permit {
     }
 
     /**
-    * @notice Get the current amount of stBTC for 1 wstBTC.
-    * @return Amount of stBTC per 1 wstBTC.
-    */
+     * @notice Get the current amount of stBTC for 1 wstBTC.
+     * @return Amount of stBTC per 1 wstBTC.
+     */
     function stBTCPerToken() external view returns (uint256) {
-        uint256 stBTCBalance = stBTC.balanceOf(address(this)); 
-        uint256 wstBTCSupply = totalSupply(); 
+        uint256 stBTCBalance = stBTC.balanceOf(address(this));
+        uint256 wstBTCSupply = totalSupply();
         require(wstBTCSupply > 0, "wstBTC: No wstBTC supply");
-        
-        return (stBTCBalance * BTC) / wstBTCSupply; 
+
+        return (stBTCBalance * BTC) / wstBTCSupply;
     }
 
     /**
-    * @notice Get the current amount of wstBTC for 1 stBTC.
-    * @return Amount of wstBTC per 1 stBTC.
-    */
+     * @notice Get the current amount of wstBTC for 1 stBTC.
+     * @return Amount of wstBTC per 1 stBTC.
+     */
     function tokensPerStBTC() external view returns (uint256) {
-        uint256 stBTCBalance = stBTC.balanceOf(address(this)); 
-        uint256 wstBTCSupply = totalSupply(); 
+        uint256 stBTCBalance = stBTC.balanceOf(address(this));
+        uint256 wstBTCSupply = totalSupply();
         require(stBTCBalance > 0, "wstBTC: No stBTC balance");
 
-        return (wstBTCSupply * BTC) / stBTCBalance; 
+        return (wstBTCSupply * BTC) / stBTCBalance;
     }
 }

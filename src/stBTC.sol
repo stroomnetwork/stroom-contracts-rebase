@@ -306,10 +306,10 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
     }
 
     /**
-    * @notice Calculates the number of shares corresponding to a given amount of staked BTC (stBTC).
-    * @param btcAmount The amount of stBTC to convert to shares.
-    * @return The number of shares equivalent to the given stBTC amount.
-    */
+     * @notice Calculates the number of shares corresponding to a given amount of staked BTC (stBTC).
+     * @param btcAmount The amount of stBTC to convert to shares.
+     * @return The number of shares equivalent to the given stBTC amount.
+     */
     function getSharesByPooledBTC(uint256 btcAmount) public view returns (uint256) {
         require(_totalShares > 0 && _totalPooledBTC > 0, "stBTC: Invalid totalShares or totalPooledBTC");
 
@@ -317,10 +317,10 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
     }
 
     /**
-    * @notice Calculates the amount of stBTC corresponding to a given number of shares.
-    * @param sharesAmount The number of shares to convert to stBTC.
-    * @return The amount of stBTC equivalent to the given shares.
-    */
+     * @notice Calculates the amount of stBTC corresponding to a given number of shares.
+     * @param sharesAmount The number of shares to convert to stBTC.
+     * @return The amount of stBTC equivalent to the given shares.
+     */
     function getPooledBTCByShares(uint256 sharesAmount) public view returns (uint256) {
         require(_totalShares > 0 && _totalPooledBTC > 0, "stBTC: Invalid totalShares or totalPooledBTC");
 

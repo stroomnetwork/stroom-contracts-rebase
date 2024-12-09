@@ -64,7 +64,7 @@ contract WstBTCTest is Test {
 
         uint256 expectedWstBTC;
         if (wstBTCSupplyBefore == 0 || stBTCBalanceBefore == 0) {
-            expectedWstBTC = stBTCAmount; 
+            expectedWstBTC = stBTCAmount;
         } else {
             expectedWstBTC = (stBTCAmount * wstBTCSupplyBefore) / stBTCBalanceBefore;
         }
@@ -84,7 +84,9 @@ contract WstBTCTest is Test {
         assertEq(finalWstBTCBalance, initialWstBTCBalance + expectedWstBTC, "wstBTC balance did not increase correctly");
 
         uint256 finalContractStBTCBalance = stBTCContract.balanceOf(address(wstBTCContract));
-        assertEq(finalContractStBTCBalance, stBTCBalanceBefore + stBTCAmount, "stBTC balance of wstBTC contract incorrect");
+        assertEq(
+            finalContractStBTCBalance, stBTCBalanceBefore + stBTCAmount, "stBTC balance of wstBTC contract incorrect"
+        );
     }
 
     function testWrapZeroAmountReverts() public {
@@ -177,7 +179,8 @@ contract WstBTCTest is Test {
         assertEq(totalSupplyAfterRewards, 15 * BTC, "Total supply incorrect after rewards");
 
         uint256 expectedStBTCFromUnwrap = (wstBTCMinted * totalSupplyAfterRewards) / totalSharesAfterRewards;
-        uint256 expectedRemainingBalanceAfterRebase = ((initialAliceBalance - initialWrapAmount) * totalSupplyAfterRewards) / totalSharesAfterRewards;
+        uint256 expectedRemainingBalanceAfterRebase =
+            ((initialAliceBalance - initialWrapAmount) * totalSupplyAfterRewards) / totalSharesAfterRewards;
         uint256 expectedFinalBalance = expectedRemainingBalanceAfterRebase + expectedStBTCFromUnwrap;
 
         vm.prank(alice);
@@ -338,7 +341,7 @@ contract WstBTCTest is Test {
     function testWrapWithExcessBalance() public {
         uint256 stBTCAmount = 1 * BTC;
 
-        deal(address(stBTCContract), address(wstBTCContract), 20 * BTC); 
+        deal(address(stBTCContract), address(wstBTCContract), 20 * BTC);
 
         uint256 initialStBTCBalance = stBTCContract.balanceOf(alice);
         uint256 initialWstBTCBalance = wstBTCContract.balanceOf(alice);
@@ -434,12 +437,9 @@ contract WstBTCTest is Test {
         expectedStBTCPerToken = (stBTCBalance * BTC) / wstBTCSupply;
         expectedTokensPerStBTC = (wstBTCSupply * BTC) / stBTCBalance;
 
-        assertEq(
-            stBTCPerTokenAfterRebase, expectedStBTCPerToken, "stBTCPerToken calculation after rebase is incorrect"
-        );
+        assertEq(stBTCPerTokenAfterRebase, expectedStBTCPerToken, "stBTCPerToken calculation after rebase is incorrect");
         assertEq(
             tokensPerStBTCAfterRebase, expectedTokensPerStBTC, "tokensPerStBTC calculation after rebase is incorrect"
         );
     }
-
 }
