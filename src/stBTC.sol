@@ -54,12 +54,6 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
 
         minWithdrawAmount = 7_000; // 0.00007 BTC
 
-        _totalShares = 0;
-
-        redeemCounter = 0;
-
-        totalSupplyUpdateNonce = 0;
-
         network = _network;
     }
 
@@ -309,5 +303,27 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
 
         redeemCounter += 1;
         emit RedeemBtcEvent(msg.sender, BTCAddress, _amount, redeemCounter);
+    }
+
+    /**
+    * @notice Calculates the number of shares corresponding to a given amount of staked BTC (stBTC).
+    * @param btcAmount The amount of stBTC to convert to shares.
+    * @return The number of shares equivalent to the given stBTC amount.
+    */
+    function getSharesByPooledBTC(uint256 btcAmount) public view returns (uint256) {
+        require(_totalShares > 0 && _totalPooledBTC > 0, "stBTC: Invalid totalShares or totalPooledBTC");
+
+        return (btcAmount * _totalShares) / _totalPooledBTC;
+    }
+
+    /**
+    * @notice Calculates the amount of stBTC corresponding to a given number of shares.
+    * @param sharesAmount The number of shares to convert to stBTC.
+    * @return The amount of stBTC equivalent to the given shares.
+    */
+    function getPooledBTCByShares(uint256 sharesAmount) public view returns (uint256) {
+        require(_totalShares > 0 && _totalPooledBTC > 0, "stBTC: Invalid totalShares or totalPooledBTC");
+
+        return (sharesAmount * _totalPooledBTC) / _totalShares;
     }
 }

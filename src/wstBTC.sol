@@ -7,6 +7,8 @@ import "../src/IStBTC.sol";
 contract wstBTC is ERC20Permit {
     IStBTC public stBTC;
 
+    uint256 public constant BTC = 1e8; // sat
+
     /**
      * @param _stBTC address of the stBTC token to wrap
      */
@@ -22,10 +24,20 @@ contract wstBTC is ERC20Permit {
     function wrap(uint256 stBTCAmount) external returns (uint256) {
         require(stBTCAmount > 0, "wstBTC: Cannot wrap zero stBTC");
 
-        uint256 wstBTCAmount = getSharesByPooledBTC(stBTCAmount);
-        _mint(msg.sender, wstBTCAmount);
+        uint256 stBTCBalance = stBTC.balanceOf(address(this));
+        uint256 wstBTCSupply = totalSupply();
 
+        uint256 wstBTCAmount;
+        if (wstBTCSupply == 0 || stBTCBalance == 0) {
+            // Initial wrap: 1:1 ratio
+            wstBTCAmount = stBTCAmount;
+        } else {
+            wstBTCAmount = (stBTCAmount * wstBTCSupply) / stBTCBalance;
+        }
+
+        _mint(msg.sender, wstBTCAmount);
         stBTC.transferFrom(msg.sender, address(this), stBTCAmount);
+
         return wstBTCAmount;
     }
 
@@ -37,52 +49,40 @@ contract wstBTC is ERC20Permit {
     function unwrap(uint256 wstBTCAmount) external returns (uint256) {
         require(wstBTCAmount > 0, "wstBTC: Cannot unwrap zero wstBTC");
 
-        uint256 stBTCAmount = getPooledBTCByShares(wstBTCAmount);
-        _burn(msg.sender, wstBTCAmount);
+        uint256 stBTCBalance = stBTC.balanceOf(address(this));
+        uint256 wstBTCSupply = totalSupply();
 
+        require(wstBTCSupply > 0, "wstBTC: No wstBTC supply");
+
+        uint256 stBTCAmount = (wstBTCAmount * stBTCBalance) / wstBTCSupply;
+
+        _burn(msg.sender, wstBTCAmount);
         stBTC.transfer(msg.sender, stBTCAmount);
+
         return stBTCAmount;
     }
 
     /**
-     * @notice Calculates the number of shares corresponding to a given amount of staked BTC (stBTC).
-     * @param btcAmount The amount of stBTC to convert to shares.
-     * @return The number of shares equivalent to the given stBTC amount.
-     */
-    function getSharesByPooledBTC(uint256 btcAmount) public view returns (uint256) {
-        uint256 totalShares = stBTC.totalShares();
-        uint256 totalPooledBTC = stBTC.totalSupply();
-        require(totalShares > 0 && totalPooledBTC > 0, "wstBTC: Invalid totalShares or totalPooledBTC");
-
-        return (btcAmount * totalShares) / totalPooledBTC;
-    }
-
-    /**
-     * @notice Calculates the amount of stBTC corresponding to a given number of shares.
-     * @param sharesAmount The number of shares to convert to stBTC.
-     * @return The amount of stBTC equivalent to the given shares.
-     */
-    function getPooledBTCByShares(uint256 sharesAmount) public view returns (uint256) {
-        uint256 totalShares = stBTC.totalShares();
-        uint256 totalPooledBTC = stBTC.totalSupply();
-        require(totalShares > 0 && totalPooledBTC > 0, "wstBTC: Invalid totalShares or totalPooledBTC");
-
-        return (sharesAmount * totalPooledBTC) / totalShares;
-    }
-
-    /**
-     * @notice Get the current amount of stBTC for 1 wstBTC.
-     * @return Amount of stBTC per 1 wstBTC.
-     */
+    * @notice Get the current amount of stBTC for 1 wstBTC.
+    * @return Amount of stBTC per 1 wstBTC.
+    */
     function stBTCPerToken() external view returns (uint256) {
-        return getPooledBTCByShares(1 ether);
+        uint256 stBTCBalance = stBTC.balanceOf(address(this)); 
+        uint256 wstBTCSupply = totalSupply(); 
+        require(wstBTCSupply > 0, "wstBTC: No wstBTC supply");
+        
+        return (stBTCBalance * BTC) / wstBTCSupply; 
     }
 
     /**
-     * @notice Get the current amount of wstBTC for 1 stBTC.
-     * @return Amount of wstBTC per 1 stBTC.
-     */
+    * @notice Get the current amount of wstBTC for 1 stBTC.
+    * @return Amount of wstBTC per 1 stBTC.
+    */
     function tokensPerStBTC() external view returns (uint256) {
-        return getSharesByPooledBTC(1 ether);
+        uint256 stBTCBalance = stBTC.balanceOf(address(this)); 
+        uint256 wstBTCSupply = totalSupply(); 
+        require(stBTCBalance > 0, "wstBTC: No stBTC balance");
+
+        return (wstBTCSupply * BTC) / stBTCBalance; 
     }
 }

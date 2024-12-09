@@ -637,4 +637,29 @@ contract STBTCTest is Test {
 
         assertEq(token.totalSupply(), 0, "Total supply should be zero after all redemptions");
     }
+
+    function testFuzzRebaseDistribution(uint256 rewardAmount) public {
+        token.mint(10 * BTC, alice, keccak256("alice_initial_deposit"));
+        token.mint(20 * BTC, bob, keccak256("bob_initial_deposit"));
+
+        vm.assume(rewardAmount > 0 && rewardAmount <= 100 * BTC);
+
+        uint256 aliceInitialBalance = token.balanceOf(alice);
+        uint256 bobInitialBalance = token.balanceOf(bob);
+        uint256 totalPooledBefore = token.totalSupply();
+
+        token.mintRewards(0, rewardAmount);
+
+        uint256 aliceFinalBalance = token.balanceOf(alice);
+        uint256 bobFinalBalance = token.balanceOf(bob);
+        uint256 totalPooledAfter = token.totalSupply();
+
+        assertEq(totalPooledAfter, totalPooledBefore + rewardAmount, "Total pooled BTC mismatch after rebase");
+
+        uint256 expectedAliceBalance = (aliceInitialBalance * totalPooledAfter) / totalPooledBefore;
+        uint256 expectedBobBalance = (bobInitialBalance * totalPooledAfter) / totalPooledBefore;
+
+        assertEq(aliceFinalBalance, expectedAliceBalance, "Alice's balance mismatch after rebase");
+        assertEq(bobFinalBalance, expectedBobBalance, "Bob's balance mismatch after rebase");
+    }
 }
