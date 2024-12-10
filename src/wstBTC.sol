@@ -63,8 +63,8 @@ contract wstBTC is ERC20Permit {
     }
 
     /**
-     * @notice Get the current amount of stBTC for 1 wstBTC.
-     * @return Amount of stBTC per 1 wstBTC.
+     * @notice Get the current amount of stBTC for amount of wstBTC.
+     * @return Amount of stBTC per amount of wstBTC.
      */
     function stBTCPerToken(uint256 amount) external view returns (uint256) {
         uint256 stBTCBalance = stBTC.balanceOf(address(this));
@@ -75,8 +75,8 @@ contract wstBTC is ERC20Permit {
     }
 
     /**
-     * @notice Get the current amount of wstBTC for 1 stBTC.
-     * @return Amount of wstBTC per 1 stBTC.
+     * @notice Get the current amount of wstBTC for amount of stBTC.
+     * @return Amount of wstBTC per amount of stBTC.
      */
     function tokensPerStBTC(uint256 amount) external view returns (uint256) {
         uint256 stBTCBalance = stBTC.balanceOf(address(this));
