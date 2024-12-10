@@ -42,8 +42,6 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
 
     event TotalSupplyUpdatedEvent(uint256 _nonce, uint256 _totalBTCSupply, uint256 _totalShares);
 
-    event Rebase(uint256 newTotalPooledBTC, uint256 newTotalShares);
-
     function initialize(BitcoinNetworkEncoder.Network _network, ValidatorRegistry _validatorRegistry)
         public
         initializer
@@ -91,7 +89,7 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
     function _update(address from, address to, uint256 value) internal override {
         if (from == address(0)) {
             uint256 sharesToMint =
-                (_totalShares == 0 || _totalPooledBTC == 0) ? value : (value * _totalShares) / _totalPooledBTC;
+                (_totalShares == 0 || _totalPooledBTC == 0) ? value : getSharesByPooledBTC(value);
 
             _totalPooledBTC += value;
             _totalShares += sharesToMint;
@@ -99,13 +97,11 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
             unchecked {
                 shares[to] += sharesToMint;
             }
-
-            emit Rebase(_totalPooledBTC, _totalShares);
         } else {
             uint256 fromBalance = balanceOf(from);
             require(fromBalance >= value, "INSUFFICIENT_BALANCE");
 
-            uint256 sharesToTransfer = (value * _totalShares) / _totalPooledBTC;
+            uint256 sharesToTransfer = getSharesByPooledBTC(value);
 
             if (to == address(0)) {
                 _totalPooledBTC -= value;
@@ -114,8 +110,6 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
                 unchecked {
                     shares[from] -= sharesToTransfer;
                 }
-
-                emit Rebase(_totalPooledBTC, _totalShares);
             } else {
                 unchecked {
                     shares[from] -= sharesToTransfer;
@@ -201,6 +195,7 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
 
     /**
      * @notice Adds rewards to the total pooled BTC and updates the supply state.
+     * TODO: delete this method before mainnet launch
      * @dev This function is used to mint new rewards for the pool by increasing the `_totalPooledBTC`.
      * @param nonce The current nonce for the total supply update, ensuring the correct order of updates.
      * @param delta The amount of BTC to be added as rewards to the total pooled BTC.
