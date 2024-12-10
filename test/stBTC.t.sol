@@ -642,7 +642,7 @@ contract STBTCTest is Test {
         vm.assume(rewardAmount > 0 && rewardAmount <= 100 * BTC);
         vm.assume(aliceMintAmount > 0 && aliceMintAmount < 21_000_000 * BTC);
         vm.assume(bobMintAmount > 0 && bobMintAmount < 21_000_000 * BTC);
-       
+
         token.mint(aliceMintAmount, alice, keccak256("alice_initial_deposit"));
         token.mint(bobMintAmount, bob, keccak256("bob_initial_deposit"));
 
