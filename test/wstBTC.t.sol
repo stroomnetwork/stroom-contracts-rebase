@@ -378,10 +378,10 @@ contract WstBTCTest is Test {
         assertEq(initialWstBTCBalance, 0, "Initial wstBTC balance is not zero");
 
         vm.expectRevert("wstBTC: No wstBTC supply");
-        wstBTCContract.stBTCPerToken();
+        wstBTCContract.stBTCPerToken(BTC);
 
         vm.expectRevert("wstBTC: No stBTC balance");
-        wstBTCContract.tokensPerStBTC();
+        wstBTCContract.tokensPerStBTC(BTC);
 
         uint256 stBTCAmount = 1 * BTC;
         stBTCContract.mint(stBTCAmount, address(this), keccak256("initial_deposit"));
@@ -400,10 +400,10 @@ contract WstBTCTest is Test {
 
     function testStBTCPerTokenAndTokensPerStBTC() public {
         vm.expectRevert("wstBTC: No wstBTC supply");
-        wstBTCContract.stBTCPerToken();
+        wstBTCContract.stBTCPerToken(BTC);
 
         vm.expectRevert("wstBTC: No stBTC balance");
-        wstBTCContract.tokensPerStBTC();
+        wstBTCContract.tokensPerStBTC(BTC);
 
         uint256 stBTCAmount = 10 * BTC;
 
@@ -413,8 +413,8 @@ contract WstBTCTest is Test {
         vm.prank(alice);
         uint256 wstBTCMinted = wstBTCContract.wrap(stBTCAmount);
 
-        uint256 stBTCPerToken = wstBTCContract.stBTCPerToken();
-        uint256 tokensPerStBTC = wstBTCContract.tokensPerStBTC();
+        uint256 stBTCPerToken = wstBTCContract.stBTCPerToken(BTC);
+        uint256 tokensPerStBTC = wstBTCContract.tokensPerStBTC(BTC);
 
         uint256 stBTCBalance = stBTCContract.balanceOf(address(wstBTCContract));
         uint256 wstBTCSupply = wstBTCContract.totalSupply();
@@ -431,8 +431,8 @@ contract WstBTCTest is Test {
         stBTCBalance = stBTCContract.balanceOf(address(wstBTCContract));
         wstBTCSupply = wstBTCContract.totalSupply();
 
-        uint256 stBTCPerTokenAfterRebase = wstBTCContract.stBTCPerToken();
-        uint256 tokensPerStBTCAfterRebase = wstBTCContract.tokensPerStBTC();
+        uint256 stBTCPerTokenAfterRebase = wstBTCContract.stBTCPerToken(BTC);
+        uint256 tokensPerStBTCAfterRebase = wstBTCContract.tokensPerStBTC(BTC);
 
         expectedStBTCPerToken = (stBTCBalance * BTC) / wstBTCSupply;
         expectedTokensPerStBTC = (wstBTCSupply * BTC) / stBTCBalance;

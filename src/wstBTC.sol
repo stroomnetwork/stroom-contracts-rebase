@@ -35,8 +35,8 @@ contract wstBTC is ERC20Permit {
             wstBTCAmount = (stBTCAmount * wstBTCSupply) / stBTCBalance;
         }
 
-        _mint(msg.sender, wstBTCAmount);
         stBTC.transferFrom(msg.sender, address(this), stBTCAmount);
+        _mint(msg.sender, wstBTCAmount);
 
         return wstBTCAmount;
     }
@@ -63,26 +63,26 @@ contract wstBTC is ERC20Permit {
     }
 
     /**
-     * @notice Get the current amount of stBTC for 1 wstBTC.
-     * @return Amount of stBTC per 1 wstBTC.
+     * @notice Get the current amount of stBTC for amount of wstBTC.
+     * @return Amount of stBTC per amount of wstBTC.
      */
-    function stBTCPerToken() external view returns (uint256) {
+    function stBTCPerToken(uint256 amount) external view returns (uint256) {
         uint256 stBTCBalance = stBTC.balanceOf(address(this));
         uint256 wstBTCSupply = totalSupply();
         require(wstBTCSupply > 0, "wstBTC: No wstBTC supply");
 
-        return (stBTCBalance * BTC) / wstBTCSupply;
+        return (stBTCBalance * amount) / wstBTCSupply;
     }
 
     /**
-     * @notice Get the current amount of wstBTC for 1 stBTC.
-     * @return Amount of wstBTC per 1 stBTC.
+     * @notice Get the current amount of wstBTC for amount of stBTC.
+     * @return Amount of wstBTC per amount of stBTC.
      */
-    function tokensPerStBTC() external view returns (uint256) {
+    function tokensPerStBTC(uint256 amount) external view returns (uint256) {
         uint256 stBTCBalance = stBTC.balanceOf(address(this));
         uint256 wstBTCSupply = totalSupply();
         require(stBTCBalance > 0, "wstBTC: No stBTC balance");
 
-        return (wstBTCSupply * BTC) / stBTCBalance;
+        return (wstBTCSupply * amount) / stBTCBalance;
     }
 }
