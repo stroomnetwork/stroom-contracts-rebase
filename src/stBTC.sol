@@ -88,8 +88,7 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
      */
     function _update(address from, address to, uint256 value) internal override {
         if (from == address(0)) {
-            uint256 sharesToMint =
-                (_totalShares == 0 || _totalPooledBTC == 0) ? value : getSharesByPooledBTC(value);
+            uint256 sharesToMint = (_totalShares == 0 || _totalPooledBTC == 0) ? value : getSharesByPooledBTC(value);
 
             _totalPooledBTC += value;
             _totalShares += sharesToMint;
