@@ -7,8 +7,6 @@ import "../src/IStBTC.sol";
 contract wstBTC is ERC20Permit {
     IStBTC public stBTC;
 
-    uint256 public constant BTC = 1e8; // sat
-
     /**
      * @param _stBTC address of the stBTC token to wrap
      */
