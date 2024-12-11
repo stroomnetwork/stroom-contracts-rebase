@@ -290,10 +290,10 @@ contract WstBTCTest is Test {
         );
     }
 
-    function testIntegrationWrapUnwrapWithRebase() public {
+    function testIntegrationWrapUnwrapWithRebase(uint256 wrapAmount, uint256 rewardAmount) public {
         uint256 initialStBTC = stBTCContract.balanceOf(alice);
-        uint256 wrapAmount = 5 * BTC;
-        uint256 rewardAmount = 2 * BTC;
+        vm.assume(wrapAmount > 0 && wrapAmount < initialStBTC);
+        vm.assume(rewardAmount > 0 && rewardAmount < 100 * BTC);
 
         vm.prank(alice);
         stBTCContract.approve(address(wstBTCContract), wrapAmount);
@@ -313,8 +313,8 @@ contract WstBTCTest is Test {
         uint256 totalPooledBTCAfterRebase = stBTCContract.totalSupply();
         uint256 aliceStBTCBalanceAfterRebase = stBTCContract.balanceOf(alice);
 
-        assertGt(totalPooledBTCAfterRebase, initialTotalPooledBTC, "Total pooled BTC after rebase should increase");
-        assertGt(
+        assertGe(totalPooledBTCAfterRebase, initialTotalPooledBTC, "Total pooled BTC after rebase should increase");
+        assertGe(
             aliceStBTCBalanceAfterRebase, initialAliceStBTCBalance, "Alice's stBTC balance after rebase should increase"
         );
 
@@ -325,9 +325,13 @@ contract WstBTCTest is Test {
         uint256 finalAliceWstBTCBalance = wstBTCContract.balanceOf(alice);
 
         assertEq(finalAliceWstBTCBalance, 0, "Alice's wstBTC balance should be zero after unwrap");
-        assertEq(
+
+        uint256 expectedBalance = initialStBTC + rewardAmount;
+
+        assertApproxEqAbs(
             aliceStBTCBalanceAfterUnwrap,
-            initialStBTC + rewardAmount,
+            expectedBalance,
+            10,
             "Alice's stBTC balance after unwrap should include rewards"
         );
 
@@ -336,6 +340,57 @@ contract WstBTCTest is Test {
             (wstBTCMinted * totalPooledBTCAfterRebase) / stBTCContract.totalShares(),
             "Unwrapped stBTC amount is incorrect"
         );
+    }
+
+    function testFuzzIntegrationWrapUnwrapWithRebaseForTwoUsers(
+        uint256 aliceWrapAmount,
+        uint256 bobWrapAmount,
+        uint256 rewardAmount
+    ) public {
+        stBTCContract.mint(15 * BTC, bob, keccak256("bob_initial_deposit"));
+
+        vm.assume(aliceWrapAmount > 0 && aliceWrapAmount <= stBTCContract.balanceOf(alice));
+        vm.assume(bobWrapAmount > 0 && bobWrapAmount <= stBTCContract.balanceOf(bob));
+        vm.assume(rewardAmount > 0 && rewardAmount < 100 * BTC);
+
+        vm.prank(alice);
+        stBTCContract.approve(address(wstBTCContract), aliceWrapAmount);
+
+        vm.prank(bob);
+        stBTCContract.approve(address(wstBTCContract), bobWrapAmount);
+
+        vm.prank(alice);
+        uint256 aliceWstBTCMinted = wstBTCContract.wrap(aliceWrapAmount);
+
+        vm.prank(bob);
+        uint256 bobWstBTCMinted = wstBTCContract.wrap(bobWrapAmount);
+
+        uint256 initialTotalShares = stBTCContract.totalShares();
+        uint256 initialTotalPooledBTC = stBTCContract.totalSupply();
+
+        stBTCContract.mintRewards(0, rewardAmount);
+
+        uint256 totalPooledBTCAfterRebase = stBTCContract.totalSupply();
+
+        uint256 expectedAliceUnwrapped = (aliceWstBTCMinted * totalPooledBTCAfterRebase) / initialTotalShares;
+        uint256 expectedBobUnwrapped = (bobWstBTCMinted * totalPooledBTCAfterRebase) / initialTotalShares;
+
+        vm.prank(alice);
+        uint256 aliceStBTCUnwrapped = wstBTCContract.unwrap(aliceWstBTCMinted);
+
+        vm.prank(bob);
+        uint256 bobStBTCUnwrapped = wstBTCContract.unwrap(bobWstBTCMinted);
+
+        assertApproxEqAbs(
+            aliceStBTCUnwrapped, expectedAliceUnwrapped, 10, "Alice's unwrapped stBTC amount incorrect after rebase"
+        );
+
+        assertApproxEqAbs(
+            bobStBTCUnwrapped, expectedBobUnwrapped, 10, "Bob's unwrapped stBTC amount incorrect after rebase"
+        );
+
+        assertEq(wstBTCContract.balanceOf(alice), 0, "Alice's wstBTC balance should be zero after unwrap");
+        assertEq(wstBTCContract.balanceOf(bob), 0, "Bob's wstBTC balance should be zero after unwrap");
     }
 
     function testWrapWithExcessBalance() public {
@@ -354,7 +409,7 @@ contract WstBTCTest is Test {
         stBTCContract.approve(address(wstBTCContract), stBTCAmount);
 
         vm.prank(alice);
-        uint256 wstBTCMinted = wstBTCContract.wrap(stBTCAmount);
+        wstBTCContract.wrap(stBTCAmount);
 
         uint256 finalStBTCBalance = stBTCContract.balanceOf(alice);
         uint256 finalWstBTCBalance = wstBTCContract.balanceOf(alice);
@@ -394,7 +449,6 @@ contract WstBTCTest is Test {
         assertEq(stBTCUnwrapped, stBTCAmount, "Unwrapped stBTC should equal initial amount");
 
         uint256 finalWstBTCTotalSupply = wstBTCContract.totalSupply();
-        uint256 finalStBTCTotalSupply = stBTCContract.totalSupply();
         assertEq(finalWstBTCTotalSupply, 0, "wstBTC total supply after unwrap should be zero");
     }
 
@@ -411,7 +465,7 @@ contract WstBTCTest is Test {
         stBTCContract.approve(address(wstBTCContract), stBTCAmount);
 
         vm.prank(alice);
-        uint256 wstBTCMinted = wstBTCContract.wrap(stBTCAmount);
+        wstBTCContract.wrap(stBTCAmount);
 
         uint256 stBTCPerToken = wstBTCContract.stBTCPerToken(BTC);
         uint256 tokensPerStBTC = wstBTCContract.tokensPerStBTC(BTC);
