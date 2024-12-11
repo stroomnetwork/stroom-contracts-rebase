@@ -292,7 +292,7 @@ contract WstBTCTest is Test {
 
     function testIntegrationWrapUnwrapWithRebase(uint256 wrapAmount, uint256 rewardAmount) public {
         uint256 initialStBTC = stBTCContract.balanceOf(alice);
-        vm.assume(wrapAmount > 0 && wrapAmount < initialStBTC); 
+        vm.assume(wrapAmount > 0 && wrapAmount < initialStBTC);
         vm.assume(rewardAmount > 0 && rewardAmount < 100 * BTC);
 
         vm.prank(alice);
@@ -325,9 +325,9 @@ contract WstBTCTest is Test {
         uint256 finalAliceWstBTCBalance = wstBTCContract.balanceOf(alice);
 
         assertEq(finalAliceWstBTCBalance, 0, "Alice's wstBTC balance should be zero after unwrap");
-        
+
         uint256 expectedBalance = initialStBTC + rewardAmount;
-       
+
         assertApproxEqAbs(
             aliceStBTCBalanceAfterUnwrap,
             expectedBalance,
@@ -382,17 +382,11 @@ contract WstBTCTest is Test {
         uint256 bobStBTCUnwrapped = wstBTCContract.unwrap(bobWstBTCMinted);
 
         assertApproxEqAbs(
-            aliceStBTCUnwrapped,
-            expectedAliceUnwrapped,
-            10,
-            "Alice's unwrapped stBTC amount incorrect after rebase"
+            aliceStBTCUnwrapped, expectedAliceUnwrapped, 10, "Alice's unwrapped stBTC amount incorrect after rebase"
         );
 
         assertApproxEqAbs(
-            bobStBTCUnwrapped,
-            expectedBobUnwrapped,
-            10,
-            "Bob's unwrapped stBTC amount incorrect after rebase"
+            bobStBTCUnwrapped, expectedBobUnwrapped, 10, "Bob's unwrapped stBTC amount incorrect after rebase"
         );
 
         assertEq(wstBTCContract.balanceOf(alice), 0, "Alice's wstBTC balance should be zero after unwrap");
