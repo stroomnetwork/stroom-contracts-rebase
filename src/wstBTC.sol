@@ -7,6 +7,11 @@ import "../src/IStBTC.sol";
 contract wstBTC is ERC20Permit {
     IStBTC public stBTC;
 
+    error CannotWrapZero();
+    error CannotUnwrapZero();
+    error NoWstBTCSupply();
+    error NoStBTCBalance();
+
     /**
      * @param _stBTC address of the stBTC token to wrap
      */
@@ -20,7 +25,7 @@ contract wstBTC is ERC20Permit {
      * @return Amount of wstBTC minted.
      */
     function wrap(uint256 stBTCAmount) external returns (uint256) {
-        require(stBTCAmount > 0, "wstBTC: Cannot wrap zero stBTC");
+        if (stBTCAmount == 0) revert CannotWrapZero();
 
         uint256 stBTCBalance = stBTC.balanceOf(address(this));
         uint256 wstBTCSupply = totalSupply();
@@ -45,12 +50,12 @@ contract wstBTC is ERC20Permit {
      * @return Amount of stBTC returned.
      */
     function unwrap(uint256 wstBTCAmount) external returns (uint256) {
-        require(wstBTCAmount > 0, "wstBTC: Cannot unwrap zero wstBTC");
+        if (wstBTCAmount == 0) revert CannotUnwrapZero();
 
         uint256 stBTCBalance = stBTC.balanceOf(address(this));
         uint256 wstBTCSupply = totalSupply();
 
-        require(wstBTCSupply > 0, "wstBTC: No wstBTC supply");
+        if (wstBTCSupply == 0) revert NoWstBTCSupply();
 
         uint256 stBTCAmount = (wstBTCAmount * stBTCBalance) / wstBTCSupply;
 
@@ -67,7 +72,7 @@ contract wstBTC is ERC20Permit {
     function stBTCPerToken(uint256 amount) external view returns (uint256) {
         uint256 stBTCBalance = stBTC.balanceOf(address(this));
         uint256 wstBTCSupply = totalSupply();
-        require(wstBTCSupply > 0, "wstBTC: No wstBTC supply");
+        if (wstBTCSupply == 0) revert NoWstBTCSupply();
 
         return (stBTCBalance * amount) / wstBTCSupply;
     }
@@ -79,7 +84,7 @@ contract wstBTC is ERC20Permit {
     function tokensPerStBTC(uint256 amount) external view returns (uint256) {
         uint256 stBTCBalance = stBTC.balanceOf(address(this));
         uint256 wstBTCSupply = totalSupply();
-        require(stBTCBalance > 0, "wstBTC: No stBTC balance");
+        if (stBTCBalance == 0) revert NoStBTCBalance();
 
         return (wstBTCSupply * amount) / stBTCBalance;
     }
