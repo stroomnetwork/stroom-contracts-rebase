@@ -22,16 +22,11 @@ contract WstBTCTest is Test {
 
     uint256 public constant BTC = 1e8; // sat
 
-    function getAdminAddress(address proxy) internal view returns (address) {
-        bytes32 adminSlot = vm.load(proxy, ERC1967Utils.ADMIN_SLOT);
-        return address(uint160(uint256(adminSlot)));
-    }
-
     function setUp() public {
         console.log("setUp");
 
         vr = new ValidatorRegistry();
-        vr.setJointPublicKey(hex"4d03b19bf5cafc2c77fcd66f56c55946d7fcbc0855342a6bdf8e37b0a9986e57");
+        vr.setJointPublicKey(hex"9627e95c7c43a6550b0bcc005bbd85de78a1e17285c9acae2349292e78b21c0f");
 
         admin = msg.sender;
 
@@ -50,7 +45,14 @@ contract WstBTCTest is Test {
         bob = makeAddr("bob");
 
         // Mint initial stBTC for Alice
-        stBTCContract.mint(10 * BTC, alice, keccak256("alice_initial_deposit"));
+        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
+            btcDepositId: keccak256("deposit1"),
+            recipient: alice,
+            amount: 10 * BTC
+        });
+        bytes memory signature = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+
+        stBTCContract.mint(invoice, signature);
     }
 
     function testFuzzWrapCorrectAmountMinted(uint256 stBTCAmount) public {
@@ -96,7 +98,7 @@ contract WstBTCTest is Test {
         stBTCContract.approve(address(wstBTCContract), stBTCAmount);
 
         vm.prank(alice);
-        vm.expectRevert("wstBTC: Cannot wrap zero stBTC");
+        vm.expectRevert(wstBTC.CannotWrapZero.selector);
         wstBTCContract.wrap(stBTCAmount);
     }
 
@@ -111,7 +113,7 @@ contract WstBTCTest is Test {
         assertEq(allowance, approveAmount, "Allowance incorrect");
 
         vm.prank(alice);
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(wstBTCContract), allowance, wrapAmount));
         wstBTCContract.wrap(wrapAmount);
     }
 
@@ -125,7 +127,7 @@ contract WstBTCTest is Test {
         stBTCContract.approve(address(wstBTCContract), wrapAmount);
 
         vm.prank(alice);
-        vm.expectRevert();
+        vm.expectRevert(stBTC.InsufficientBalance.selector);
         wstBTCContract.wrap(wrapAmount);
     }
 
@@ -171,7 +173,12 @@ contract WstBTCTest is Test {
         assertEq(aliceWstBTCBalance, wstBTCMinted, "Alice's wstBTC balance incorrect after wrap");
 
         uint256 rewardAmount = 5 * BTC;
-        stBTCContract.mintRewards(0, rewardAmount);
+
+        bytes32 totalSupplyUpdateHash = stBTCContract.getTotalSupplyUpdateHash(0, rewardAmount);
+        console.logBytes32(totalSupplyUpdateHash);
+        bytes memory validSignature = hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
+
+        stBTCContract.mintRewards(0, rewardAmount, validSignature);
 
         uint256 totalSupplyAfterRewards = stBTCContract.totalSupply();
         uint256 totalSharesAfterRewards = stBTCContract.totalShares();
@@ -200,7 +207,7 @@ contract WstBTCTest is Test {
 
         uint256 zeroAmount = 0;
 
-        vm.expectRevert("wstBTC: Cannot unwrap zero wstBTC");
+        vm.expectRevert(wstBTC.CannotUnwrapZero.selector);
         wstBTCContract.unwrap(zeroAmount);
 
         vm.stopPrank();
@@ -211,7 +218,7 @@ contract WstBTCTest is Test {
 
         uint256 insufficientAmount = 1 * 10 ** 18;
 
-        vm.expectRevert();
+        vm.expectRevert(wstBTC.NoWstBTCSupply.selector);
         wstBTCContract.unwrap(insufficientAmount);
 
         vm.stopPrank();
@@ -290,10 +297,9 @@ contract WstBTCTest is Test {
         );
     }
 
-    function testIntegrationWrapUnwrapWithRebase(uint256 wrapAmount, uint256 rewardAmount) public {
+    function testIntegrationWrapUnwrapWithRebase(uint256 wrapAmount) public {
         uint256 initialStBTC = stBTCContract.balanceOf(alice);
         vm.assume(wrapAmount > 0 && wrapAmount < initialStBTC);
-        vm.assume(rewardAmount > 0 && rewardAmount < 100 * BTC);
 
         vm.prank(alice);
         stBTCContract.approve(address(wstBTCContract), wrapAmount);
@@ -308,7 +314,10 @@ contract WstBTCTest is Test {
         assertEq(initialAliceStBTCBalance, initialStBTC - wrapAmount, "Alice's stBTC balance after wrap incorrect");
         assertEq(initialAliceWstBTCBalance, wstBTCMinted, "Alice's wstBTC balance after wrap incorrect");
 
-        stBTCContract.mintRewards(0, rewardAmount);
+        uint256 rewardAmount = 5 * BTC;
+        bytes memory validSignature = hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
+
+        stBTCContract.mintRewards(0, rewardAmount, validSignature);
 
         uint256 totalPooledBTCAfterRebase = stBTCContract.totalSupply();
         uint256 aliceStBTCBalanceAfterRebase = stBTCContract.balanceOf(alice);
@@ -344,14 +353,19 @@ contract WstBTCTest is Test {
 
     function testFuzzIntegrationWrapUnwrapWithRebaseForTwoUsers(
         uint256 aliceWrapAmount,
-        uint256 bobWrapAmount,
-        uint256 rewardAmount
+        uint256 bobWrapAmount
     ) public {
-        stBTCContract.mint(15 * BTC, bob, keccak256("bob_initial_deposit"));
+        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
+            btcDepositId: keccak256("deposit2"),
+            recipient: bob,
+            amount: 15 * BTC
+        });
+        bytes memory signature = hex"afbfdb08ce06fac74578357564a061daf21b5e9e8829b052173c6de7da2db52dbe5cb8ced766d4e3d8c7a0cca7e944f29de838d36673f2b3c5ae3793c8f7d866";
+        
+        stBTCContract.mint(invoice, signature);
 
         vm.assume(aliceWrapAmount > 0 && aliceWrapAmount <= stBTCContract.balanceOf(alice));
         vm.assume(bobWrapAmount > 0 && bobWrapAmount <= stBTCContract.balanceOf(bob));
-        vm.assume(rewardAmount > 0 && rewardAmount < 100 * BTC);
 
         vm.prank(alice);
         stBTCContract.approve(address(wstBTCContract), aliceWrapAmount);
@@ -366,9 +380,13 @@ contract WstBTCTest is Test {
         uint256 bobWstBTCMinted = wstBTCContract.wrap(bobWrapAmount);
 
         uint256 initialTotalShares = stBTCContract.totalShares();
-        uint256 initialTotalPooledBTC = stBTCContract.totalSupply();
 
-        stBTCContract.mintRewards(0, rewardAmount);
+        uint256 rewardAmount = 5 * BTC;
+        bytes32 totalSupplyUpdateHash = stBTCContract.getTotalSupplyUpdateHash(0, rewardAmount);
+        console.logBytes32(totalSupplyUpdateHash);
+        bytes memory validSignature = hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
+
+        stBTCContract.mintRewards(0, rewardAmount, validSignature);
 
         uint256 totalPooledBTCAfterRebase = stBTCContract.totalSupply();
 
@@ -432,14 +450,25 @@ contract WstBTCTest is Test {
         assertEq(initialWstBTCTotalSupply, 0, "Initial wstBTC total supply is not zero");
         assertEq(initialWstBTCBalance, 0, "Initial wstBTC balance is not zero");
 
-        vm.expectRevert("wstBTC: No wstBTC supply");
+        vm.expectRevert(wstBTC.NoWstBTCSupply.selector);
         wstBTCContract.stBTCPerToken(BTC);
 
-        vm.expectRevert("wstBTC: No stBTC balance");
+        vm.expectRevert(wstBTC.NoStBTCBalance.selector);
         wstBTCContract.tokensPerStBTC(BTC);
 
         uint256 stBTCAmount = 1 * BTC;
-        stBTCContract.mint(stBTCAmount, address(this), keccak256("initial_deposit"));
+        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
+            btcDepositId: keccak256("initial_deposit"),
+            recipient: address(this),
+            amount: stBTCAmount
+        });
+
+        bytes32 invoiceHash = stBTCContract.getMintInvoiceHash(invoice);
+        console.logBytes32(invoiceHash);
+        bytes memory signature = hex"4bfdff7e1b987ba478fdb196010e6ed8be7006e85d9bcec6b9b15887a7b9d9b4e9fd3389a838897952068261c1f49df76ddda11ad0465989049e07cbe73df200";
+       
+        stBTCContract.mint(invoice, signature);
+
         stBTCContract.approve(address(wstBTCContract), stBTCAmount);
 
         uint256 wstBTCMinted = wstBTCContract.wrap(stBTCAmount);
@@ -453,10 +482,10 @@ contract WstBTCTest is Test {
     }
 
     function testStBTCPerTokenAndTokensPerStBTC() public {
-        vm.expectRevert("wstBTC: No wstBTC supply");
+        vm.expectRevert(wstBTC.NoWstBTCSupply.selector);
         wstBTCContract.stBTCPerToken(BTC);
 
-        vm.expectRevert("wstBTC: No stBTC balance");
+        vm.expectRevert(wstBTC.NoStBTCBalance.selector);
         wstBTCContract.tokensPerStBTC(BTC);
 
         uint256 stBTCAmount = 10 * BTC;
@@ -480,7 +509,8 @@ contract WstBTCTest is Test {
         assertEq(tokensPerStBTC, expectedTokensPerStBTC, "tokensPerStBTC calculation is incorrect");
 
         uint256 rewardAmount = 5 * BTC;
-        stBTCContract.mintRewards(0, rewardAmount);
+        bytes memory validSignature = hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
+        stBTCContract.mintRewards(0, rewardAmount, validSignature);
 
         stBTCBalance = stBTCContract.balanceOf(address(wstBTCContract));
         wstBTCSupply = wstBTCContract.totalSupply();
