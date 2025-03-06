@@ -45,12 +45,10 @@ contract WstBTCTest is Test {
         bob = makeAddr("bob");
 
         // Mint initial stBTC for Alice
-        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: 10 * BTC
-        });
-        bytes memory signature = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+        stBTC.MintInvoice memory invoice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: 10 * BTC});
+        bytes memory signature =
+            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
 
         stBTCContract.mint(invoice, signature);
     }
@@ -113,7 +111,11 @@ contract WstBTCTest is Test {
         assertEq(allowance, approveAmount, "Allowance incorrect");
 
         vm.prank(alice);
-        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(wstBTCContract), allowance, wrapAmount));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InsufficientAllowance.selector, address(wstBTCContract), allowance, wrapAmount
+            )
+        );
         wstBTCContract.wrap(wrapAmount);
     }
 
@@ -176,7 +178,8 @@ contract WstBTCTest is Test {
 
         bytes32 totalSupplyUpdateHash = stBTCContract.getTotalSupplyUpdateHash(0, rewardAmount);
         console.logBytes32(totalSupplyUpdateHash);
-        bytes memory validSignature = hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
+        bytes memory validSignature =
+            hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
 
         stBTCContract.mintRewards(0, rewardAmount, validSignature);
 
@@ -315,7 +318,8 @@ contract WstBTCTest is Test {
         assertEq(initialAliceWstBTCBalance, wstBTCMinted, "Alice's wstBTC balance after wrap incorrect");
 
         uint256 rewardAmount = 5 * BTC;
-        bytes memory validSignature = hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
+        bytes memory validSignature =
+            hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
 
         stBTCContract.mintRewards(0, rewardAmount, validSignature);
 
@@ -351,17 +355,14 @@ contract WstBTCTest is Test {
         );
     }
 
-    function testFuzzIntegrationWrapUnwrapWithRebaseForTwoUsers(
-        uint256 aliceWrapAmount,
-        uint256 bobWrapAmount
-    ) public {
-        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit2"),
-            recipient: bob,
-            amount: 15 * BTC
-        });
-        bytes memory signature = hex"afbfdb08ce06fac74578357564a061daf21b5e9e8829b052173c6de7da2db52dbe5cb8ced766d4e3d8c7a0cca7e944f29de838d36673f2b3c5ae3793c8f7d866";
-        
+    function testFuzzIntegrationWrapUnwrapWithRebaseForTwoUsers(uint256 aliceWrapAmount, uint256 bobWrapAmount)
+        public
+    {
+        stBTC.MintInvoice memory invoice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit2"), recipient: bob, amount: 15 * BTC});
+        bytes memory signature =
+            hex"afbfdb08ce06fac74578357564a061daf21b5e9e8829b052173c6de7da2db52dbe5cb8ced766d4e3d8c7a0cca7e944f29de838d36673f2b3c5ae3793c8f7d866";
+
         stBTCContract.mint(invoice, signature);
 
         vm.assume(aliceWrapAmount > 0 && aliceWrapAmount <= stBTCContract.balanceOf(alice));
@@ -384,7 +385,8 @@ contract WstBTCTest is Test {
         uint256 rewardAmount = 5 * BTC;
         bytes32 totalSupplyUpdateHash = stBTCContract.getTotalSupplyUpdateHash(0, rewardAmount);
         console.logBytes32(totalSupplyUpdateHash);
-        bytes memory validSignature = hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
+        bytes memory validSignature =
+            hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
 
         stBTCContract.mintRewards(0, rewardAmount, validSignature);
 
@@ -465,8 +467,9 @@ contract WstBTCTest is Test {
 
         bytes32 invoiceHash = stBTCContract.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
-        bytes memory signature = hex"4bfdff7e1b987ba478fdb196010e6ed8be7006e85d9bcec6b9b15887a7b9d9b4e9fd3389a838897952068261c1f49df76ddda11ad0465989049e07cbe73df200";
-       
+        bytes memory signature =
+            hex"4bfdff7e1b987ba478fdb196010e6ed8be7006e85d9bcec6b9b15887a7b9d9b4e9fd3389a838897952068261c1f49df76ddda11ad0465989049e07cbe73df200";
+
         stBTCContract.mint(invoice, signature);
 
         stBTCContract.approve(address(wstBTCContract), stBTCAmount);
@@ -509,7 +512,8 @@ contract WstBTCTest is Test {
         assertEq(tokensPerStBTC, expectedTokensPerStBTC, "tokensPerStBTC calculation is incorrect");
 
         uint256 rewardAmount = 5 * BTC;
-        bytes memory validSignature = hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
+        bytes memory validSignature =
+            hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
         stBTCContract.mintRewards(0, rewardAmount, validSignature);
 
         stBTCBalance = stBTCContract.balanceOf(address(wstBTCContract));

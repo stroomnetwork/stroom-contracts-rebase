@@ -60,14 +60,12 @@ contract STBTCTest is Test {
         assertEq(token.totalSupply(), 0, "Total supply should be 0 initially");
         assertEq(token.totalShares(), 0, "Total shares should be 0 initially");
 
-        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
-            btcDepositId: btcDepositId,
-            recipient: alice,
-            amount: mintAmount
-        });
+        stBTC.MintInvoice memory invoice =
+            stBTC.MintInvoice({btcDepositId: btcDepositId, recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
-        bytes memory signature = hex"589e1fbad605039213fb205db0e92bef7bfdd27a460c8323735b2e5729cd40e92c5be606fa719d210dabc5c5e2b49788ccb944822cfda8ed003b5b42d4d56450";
+        bytes memory signature =
+            hex"589e1fbad605039213fb205db0e92bef7bfdd27a460c8323735b2e5729cd40e92c5be606fa719d210dabc5c5e2b49788ccb944822cfda8ed003b5b42d4d56450";
 
         token.mint(invoice, signature);
 
@@ -84,14 +82,12 @@ contract STBTCTest is Test {
         uint256 mintAmount1 = 10 * BTC;
         bytes32 btcDepositId1 = keccak256(abi.encodePacked("txHash1", uint256(1)));
 
-        stBTC.MintInvoice memory invoice1 = stBTC.MintInvoice({
-            btcDepositId: btcDepositId1,
-            recipient: alice,
-            amount: mintAmount1
-        });
+        stBTC.MintInvoice memory invoice1 =
+            stBTC.MintInvoice({btcDepositId: btcDepositId1, recipient: alice, amount: mintAmount1});
         bytes32 invoiceHash1 = token.getMintInvoiceHash(invoice1);
         console.logBytes32(invoiceHash1);
-        bytes memory signature1 = hex"47be24aa0a8a343d4b3c90b838a45516611c46cafed4cffe409781bd6d56135faed8e6779db6e881cd31cafd8a07efccd47c9a19572716e895fa69c0ef61c6ab";
+        bytes memory signature1 =
+            hex"47be24aa0a8a343d4b3c90b838a45516611c46cafed4cffe409781bd6d56135faed8e6779db6e881cd31cafd8a07efccd47c9a19572716e895fa69c0ef61c6ab";
 
         token.mint(invoice1, signature1);
 
@@ -104,14 +100,12 @@ contract STBTCTest is Test {
         uint256 mintAmount2 = 5 * BTC;
         bytes32 btcDepositId2 = keccak256(abi.encodePacked("txHash2", uint256(2)));
 
-        stBTC.MintInvoice memory invoice2 = stBTC.MintInvoice({
-            btcDepositId: btcDepositId2,
-            recipient: bob,
-            amount: mintAmount2
-        });
+        stBTC.MintInvoice memory invoice2 =
+            stBTC.MintInvoice({btcDepositId: btcDepositId2, recipient: bob, amount: mintAmount2});
         bytes32 invoiceHash2 = token.getMintInvoiceHash(invoice2);
         console.logBytes32(invoiceHash2);
-        bytes memory signature2 = hex"6147dd3c046e5a88b60b272124b871c052527bd0a9c261fc09d776e223c148d94350c0c3884cfdc07e5e1a0dd770c6314e98963900966cb9398104db7d6f9a14";
+        bytes memory signature2 =
+            hex"6147dd3c046e5a88b60b272124b871c052527bd0a9c261fc09d776e223c148d94350c0c3884cfdc07e5e1a0dd770c6314e98963900966cb9398104db7d6f9a14";
 
         token.mint(invoice2, signature2);
 
@@ -132,14 +126,12 @@ contract STBTCTest is Test {
         uint256 mintAmount = 10 * BTC;
         bytes32 btcDepositId = keccak256(abi.encodePacked("txHash", uint256(1)));
 
-        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
-            btcDepositId: btcDepositId,
-            recipient: alice,
-            amount: mintAmount
-        });
+        stBTC.MintInvoice memory invoice =
+            stBTC.MintInvoice({btcDepositId: btcDepositId, recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
-        bytes memory signature = hex"589e1fbad605039213fb205db0e92bef7bfdd27a460c8323735b2e5729cd40e92c5be606fa719d210dabc5c5e2b49788ccb944822cfda8ed003b5b42d4d56450";
+        bytes memory signature =
+            hex"589e1fbad605039213fb205db0e92bef7bfdd27a460c8323735b2e5729cd40e92c5be606fa719d210dabc5c5e2b49788ccb944822cfda8ed003b5b42d4d56450";
 
         token.mint(invoice, signature);
 
@@ -154,11 +146,7 @@ contract STBTCTest is Test {
         uint256 mintAmountAlice = 10 * BTC;
         bytes32 btcDepositIdAlice = keccak256(abi.encodePacked("txHashAlice", uint256(1)));
         stBTC.MintInvoice memory invoiceAlice =
-            stBTC.MintInvoice({
-                btcDepositId: btcDepositIdAlice, 
-                recipient: alice, 
-                amount: mintAmountAlice
-            });
+            stBTC.MintInvoice({btcDepositId: btcDepositIdAlice, recipient: alice, amount: mintAmountAlice});
         bytes32 invoiceAliceHash = token.getMintInvoiceHash(invoiceAlice);
         console.logBytes32(invoiceAliceHash);
 
@@ -209,11 +197,12 @@ contract STBTCTest is Test {
 
         vm.expectEmit(true, true, true, true);
         emit TotalSupplyUpdatedEvent(initialNonce, initialTotalPooledBTC + rewardAmount, token.totalShares());
-        
+
         bytes32 totalSupplyUpdateHash = token.getTotalSupplyUpdateHash(initialNonce, rewardAmount);
         console.logBytes32(totalSupplyUpdateHash);
-        bytes memory signature = hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
-        
+        bytes memory signature =
+            hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
+
         token.mintRewards(initialNonce, rewardAmount, signature);
 
         uint256 updatedTotalPooledBTC = token.totalSupply();
@@ -281,10 +270,11 @@ contract STBTCTest is Test {
     function testMintRewardsWithInvalidNonce() public {
         uint256 rewardAmount = 5 * BTC;
         uint256 invalidNonce = 5;
-        
+
         bytes32 totalSupplyUpdateHash = token.getTotalSupplyUpdateHash(invalidNonce, rewardAmount);
         console.logBytes32(totalSupplyUpdateHash);
-        bytes memory invalidSignature = hex"7cda4fa045056a574e22f07ef655e74a1640d2afbfb535fb5baf0acd8585085a77d63a352768de3cef51da248944af1a7f809f693b4838a21071ecb2bdc30abf";
+        bytes memory invalidSignature =
+            hex"7cda4fa045056a574e22f07ef655e74a1640d2afbfb535fb5baf0acd8585085a77d63a352768de3cef51da248944af1a7f809f693b4838a21071ecb2bdc30abf";
         vm.expectRevert(stBTC.InvalidTotalSupplyNonce.selector);
         token.mintRewards(invalidNonce, rewardAmount, invalidSignature);
     }
@@ -294,14 +284,12 @@ contract STBTCTest is Test {
         uint256 redeemAmount = 5 * BTC;
         string memory validBTCAddress = "1JTFoeWo4xPrQuVidgmzqoVRXLmd8pjtU9";
 
-        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: mintAmount
-        });
+        stBTC.MintInvoice memory invoice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
-        bytes memory signature = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+        bytes memory signature =
+            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
         token.mint(invoice, signature);
 
         assertEq(token.balanceOf(alice), mintAmount, "Initial balance mismatch");
@@ -325,15 +313,13 @@ contract STBTCTest is Test {
         uint256 invalidRedeemAmount = token.minWithdrawAmount() - 1;
         string memory validBTCAddress = "1JTFoeWo4xPrQuVidgmzqoVRXLmd8pjtU9";
 
-        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: mintAmount
-        });
+        stBTC.MintInvoice memory invoice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
-        bytes memory signature = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
-        
+        bytes memory signature =
+            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+
         token.mint(invoice, signature);
 
         assertEq(token.balanceOf(alice), mintAmount, "Initial balance mismatch");
@@ -352,15 +338,13 @@ contract STBTCTest is Test {
         uint256 redeemAmount = 1 * BTC;
         string memory invalidBTCAddress = "InvalidBTCAddress123";
 
-        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: mintAmount
-        });
+        stBTC.MintInvoice memory invoice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
-        bytes memory signature = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
-        
+        bytes memory signature =
+            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+
         token.mint(invoice, signature);
 
         assertEq(token.balanceOf(alice), mintAmount, "Initial balance mismatch");
@@ -379,14 +363,12 @@ contract STBTCTest is Test {
         uint256 redeemAmount = 5 * BTC;
         string memory validBTCAddress = "1JTFoeWo4xPrQuVidgmzqoVRXLmd8pjtU9";
 
-        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: mintAmount
-        });
+        stBTC.MintInvoice memory invoice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
-        bytes memory signature = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+        bytes memory signature =
+            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
         token.mint(invoice, signature);
 
         uint256 initialTotalPooledBTC = token.totalSupply();
@@ -407,14 +389,12 @@ contract STBTCTest is Test {
         uint256 mintAmount = 10 * BTC;
         uint256 transferAmount = 5 * BTC;
 
-        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: mintAmount
-        });
+        stBTC.MintInvoice memory invoice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
-        bytes memory signature = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+        bytes memory signature =
+            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
         token.mint(invoice, signature);
 
         assertEq(token.balanceOf(alice), mintAmount, "Initial balance mismatch for Alice");
@@ -440,15 +420,13 @@ contract STBTCTest is Test {
         uint256 mintAmount = 10 * BTC;
         uint256 transferAmount = 15 * BTC;
 
-        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: mintAmount
-        });
+        stBTC.MintInvoice memory invoice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
-        bytes memory signature = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
-        
+        bytes memory signature =
+            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+
         token.mint(invoice, signature);
 
         assertEq(token.balanceOf(alice), mintAmount, "Alice's initial balance mismatch");
@@ -465,14 +443,12 @@ contract STBTCTest is Test {
         uint256 mintAmount = 10 * BTC;
         uint256 transferAmount = 5 * BTC;
 
-        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: mintAmount
-        });
+        stBTC.MintInvoice memory invoice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
-        bytes memory signature = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+        bytes memory signature =
+            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
         token.mint(invoice, signature);
 
         uint256 initialBalanceAlice = token.balanceOf(alice);
@@ -501,24 +477,20 @@ contract STBTCTest is Test {
         uint256 mintAmountAlice = 10 * BTC;
         uint256 mintAmountBob = 5 * BTC;
 
-        stBTC.MintInvoice memory invoiceAlice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: mintAmountAlice
-        });
+        stBTC.MintInvoice memory invoiceAlice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmountAlice});
         bytes32 invoiceHashAlice = token.getMintInvoiceHash(invoiceAlice);
         console.logBytes32(invoiceHashAlice);
-        bytes memory signatureAlice = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+        bytes memory signatureAlice =
+            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
         token.mint(invoiceAlice, signatureAlice);
 
-        stBTC.MintInvoice memory invoiceBob = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit2"),
-            recipient: bob,
-            amount: mintAmountBob
-        });
+        stBTC.MintInvoice memory invoiceBob =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit2"), recipient: bob, amount: mintAmountBob});
         bytes32 invoiceHashBob = token.getMintInvoiceHash(invoiceBob);
         console.logBytes32(invoiceHashBob);
-        bytes memory signatureBob = hex"8436ac1084cdca7807c27570d5545b4dafb041481142712af5c2fc29c70ced1e977fabf45ce32aa6043036679e698b1494a7f4eafdab86c75fd02e440d6d138d";
+        bytes memory signatureBob =
+            hex"8436ac1084cdca7807c27570d5545b4dafb041481142712af5c2fc29c70ced1e977fabf45ce32aa6043036679e698b1494a7f4eafdab86c75fd02e440d6d138d";
         token.mint(invoiceBob, signatureBob);
 
         uint256 totalPooledBTC = token.totalSupply();
@@ -544,15 +516,13 @@ contract STBTCTest is Test {
         uint256 mintRewardAmount = 5 * BTC;
         uint256 redeemAmount = 5 * BTC;
 
-        stBTC.MintInvoice memory invoiceAlice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: mintAmountAlice
-        });
+        stBTC.MintInvoice memory invoiceAlice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmountAlice});
         bytes32 invoiceHashAlice = token.getMintInvoiceHash(invoiceAlice);
         console.logBytes32(invoiceHashAlice);
-        bytes memory signatureAlice = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
-        
+        bytes memory signatureAlice =
+            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+
         token.mint(invoiceAlice, signatureAlice);
 
         uint256 initialBalanceAlice = token.balanceOf(alice);
@@ -560,7 +530,8 @@ contract STBTCTest is Test {
 
         bytes32 totalSupplyUpdateHash = token.getTotalSupplyUpdateHash(0, mintRewardAmount);
         console.logBytes32(totalSupplyUpdateHash);
-        bytes memory validSignature = hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
+        bytes memory validSignature =
+            hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
 
         token.mintRewards(0, mintRewardAmount, validSignature);
 
@@ -589,15 +560,13 @@ contract STBTCTest is Test {
 
         token.pause();
 
-        stBTC.MintInvoice memory invoiceAlice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: 10 * BTC
-        });
+        stBTC.MintInvoice memory invoiceAlice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: 10 * BTC});
         bytes32 invoiceHashAlice = token.getMintInvoiceHash(invoiceAlice);
         console.logBytes32(invoiceHashAlice);
-        bytes memory signatureAlice = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
-        
+        bytes memory signatureAlice =
+            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+
         vm.expectRevert(PausableUpgradeable.EnforcedPause.selector);
         token.mint(invoiceAlice, signatureAlice);
 
@@ -607,8 +576,9 @@ contract STBTCTest is Test {
 
         bytes32 totalSupplyUpdateHash = token.getTotalSupplyUpdateHash(1, 5 * BTC);
         console.logBytes32(totalSupplyUpdateHash);
-        bytes memory validSignature = hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
-        
+        bytes memory validSignature =
+            hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
+
         vm.expectRevert(PausableUpgradeable.EnforcedPause.selector);
         token.mintRewards(0, 5 * BTC, validSignature);
 
@@ -631,15 +601,13 @@ contract STBTCTest is Test {
     }
 
     function testEdgeCases() public {
-        stBTC.MintInvoice memory invoiceZeroAmount = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: 0
-        });
+        stBTC.MintInvoice memory invoiceZeroAmount =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: 0});
         bytes32 invoiceHashZeroAmount = token.getMintInvoiceHash(invoiceZeroAmount);
         console.logBytes32(invoiceHashZeroAmount);
-        bytes memory signatureZeroAmount = hex"0a78867e5dced40470397b72963069ecfb66e9a030125974ecfacde8ce4e9ee93a1a01775aaae4b33e0a41e2379cbb46310ebf7fec9d8cf48650753d814b7871";
-        
+        bytes memory signatureZeroAmount =
+            hex"0a78867e5dced40470397b72963069ecfb66e9a030125974ecfacde8ce4e9ee93a1a01775aaae4b33e0a41e2379cbb46310ebf7fec9d8cf48650753d814b7871";
+
         vm.expectRevert(stBTC.MintAmountZero.selector);
         token.mint(invoiceZeroAmount, signatureZeroAmount);
 
@@ -647,14 +615,12 @@ contract STBTCTest is Test {
         vm.expectRevert(stBTC.AmountBelowMinWithdraw.selector);
         token.redeem(0, "1JTFoeWo4xPrQuVidgmzqoVRXLmd8pjtU9");
 
-        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: 10 * BTC
-        });
+        stBTC.MintInvoice memory invoice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: 10 * BTC});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
-        bytes memory signature = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+        bytes memory signature =
+            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
 
         token.mint(invoice, signature);
 
@@ -664,18 +630,16 @@ contract STBTCTest is Test {
         vm.prank(alice);
         assertEq(token.balanceOf(alice), 10 * BTC, "Balance should match initial mint");
 
-        stBTC.MintInvoice memory invoiceZeroAddress = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit2"),
-            recipient: address(0),
-            amount: 10 * BTC
-        });
+        stBTC.MintInvoice memory invoiceZeroAddress =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit2"), recipient: address(0), amount: 10 * BTC});
         bytes32 invoiceHashZeroAddress = token.getMintInvoiceHash(invoiceZeroAddress);
         console.logBytes32(invoiceHashZeroAddress);
-        bytes memory signatureZeroAddress = hex"522ac790ad6b4a9daec6fc66ad61c24529e668b9de1f0402fb234c0850b0e984b1ece8c6fe4d6b22743686be5a76aa9e41e90b4a8baf3e1e28a9c48b5074ae52";
-       
+        bytes memory signatureZeroAddress =
+            hex"522ac790ad6b4a9daec6fc66ad61c24529e668b9de1f0402fb234c0850b0e984b1ece8c6fe4d6b22743686be5a76aa9e41e90b4a8baf3e1e28a9c48b5074ae52";
+
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InvalidReceiver.selector, address(0)));
         token.mint(invoiceZeroAddress, signatureZeroAddress);
-        
+
         vm.prank(alice);
         vm.expectRevert(stBTC.InvalidBTCAddress.selector);
         token.redeem(5 * BTC, "");
@@ -697,26 +661,24 @@ contract STBTCTest is Test {
 
     function testSetMinWithdrawAmount() public {
         uint256 newMinAmount = 2 * BTC;
-        
+
         vm.prank(alice);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, alice));
         token.setMinWithdrawAmount(newMinAmount);
-        
+
         token.setMinWithdrawAmount(newMinAmount);
         assertEq(token.minWithdrawAmount(), newMinAmount);
     }
 
     function testRedeemWithInvalidAmount() public {
         uint256 mintAmount = 10 * BTC;
-        
-        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: mintAmount
-        });
-        bytes memory signature = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+
+        stBTC.MintInvoice memory invoice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
+        bytes memory signature =
+            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
         token.mint(invoice, signature);
-        
+
         vm.prank(alice);
         vm.expectRevert(stBTC.InsufficientBalance.selector);
         token.redeem(mintAmount + 1, "1JTFoeWo4xPrQuVidgmzqoVRXLmd8pjtU9");
@@ -725,16 +687,14 @@ contract STBTCTest is Test {
     function testTotalSharesAndGetShares() public {
         assertEq(token.totalShares(), 0);
         assertEq(token.getShares(alice), 0);
-        
+
         uint256 mintAmount = 10 * BTC;
-        stBTC.MintInvoice memory invoice = stBTC.MintInvoice({
-            btcDepositId: keccak256("deposit1"),
-            recipient: alice,
-            amount: mintAmount
-        });
-        bytes memory signature = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+        stBTC.MintInvoice memory invoice =
+            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
+        bytes memory signature =
+            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
         token.mint(invoice, signature);
-        
+
         assertEq(token.totalShares(), mintAmount);
         assertEq(token.getShares(alice), mintAmount);
     }
@@ -742,44 +702,41 @@ contract STBTCTest is Test {
     function testGetPooledBTCByShares() public {
         vm.expectRevert(stBTC.InvalidTotalSharesOrPooledBTC.selector);
         token.getPooledBTCByShares(100);
-        
+
         vm.expectRevert(stBTC.InvalidTotalSharesOrPooledBTC.selector);
         token.getSharesByPooledBTC(100);
-        
+
         uint256 mintAmount1 = 10 * BTC;
         {
-            stBTC.MintInvoice memory invoice1 = stBTC.MintInvoice({
-                btcDepositId: keccak256("deposit1"),
-                recipient: alice,
-                amount: mintAmount1
-            });
-            bytes memory signature1 = hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+            stBTC.MintInvoice memory invoice1 =
+                stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount1});
+            bytes memory signature1 =
+                hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
             token.mint(invoice1, signature1);
         }
-        
+
         uint256 mintAmount2 = 15 * BTC;
         {
-            stBTC.MintInvoice memory invoice2 = stBTC.MintInvoice({
-                btcDepositId: keccak256("deposit2"),
-                recipient: alice,
-                amount: mintAmount2
-            });
-            bytes memory signature2 = hex"6e554675cfda2312235a42ee7e2fd27f649d2fb65c6e43019bc0adf84f4e6a15052627b0536139d29b00cde592a780805af57e90a96971ac26aea1ada07fa35f";
+            stBTC.MintInvoice memory invoice2 =
+                stBTC.MintInvoice({btcDepositId: keccak256("deposit2"), recipient: alice, amount: mintAmount2});
+            bytes memory signature2 =
+                hex"6e554675cfda2312235a42ee7e2fd27f649d2fb65c6e43019bc0adf84f4e6a15052627b0536139d29b00cde592a780805af57e90a96971ac26aea1ada07fa35f";
             token.mint(invoice2, signature2);
         }
 
         uint256 rewardAmount = 5 * BTC;
         {
-            bytes memory validSignature = hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
+            bytes memory validSignature =
+                hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
             token.mintRewards(0, rewardAmount, validSignature);
         }
-        
+
         uint256 totalSupply = token.totalSupply(); // 30 BTC (10 + 15 + 5)
         uint256 totalShares = token.totalShares(); // 25 BTC (10 + 15)
 
         uint256 expectedBTC1 = (mintAmount1 * totalSupply) / totalShares;
         assertEq(token.getPooledBTCByShares(mintAmount1), expectedBTC1);
-        
+
         uint256 expectedBTC2 = (mintAmount2 * totalSupply) / totalShares;
         assertEq(token.getPooledBTCByShares(mintAmount2), expectedBTC2);
 
