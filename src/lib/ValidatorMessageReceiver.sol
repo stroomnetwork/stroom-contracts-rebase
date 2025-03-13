@@ -12,6 +12,8 @@ contract ValidatorMessageReceiver is OwnableUpgradeable, Bip340Ecrec {
     // Add a state variable for the ValidatorRegistry contract
     ValidatorRegistry public validatorRegistry;
 
+    error InvalidValidatorSignature();
+
     // Update the constructor to accept the ValidatorRegistry contract
     function initialize(ValidatorRegistry _validatorRegistry) public onlyInitializing {
         OwnableUpgradeable.__Ownable_init(msg.sender);
@@ -19,9 +21,9 @@ contract ValidatorMessageReceiver is OwnableUpgradeable, Bip340Ecrec {
     }
 
     modifier onlyValidator(bytes memory prefix, bytes memory data, bytes calldata signature) {
-        require(
-            validatorRegistry.validateMessage(prefix, data, signature), "ValidatorMessageReceiver: INVALID_SIGNATURE"
-        );
+        if (!validatorRegistry.validateMessage(prefix, data, signature)) {
+            revert InvalidValidatorSignature();
+        }
         _;
     }
 }

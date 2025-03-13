@@ -11,7 +11,22 @@ import "blockchain-tools/src/BitcoinNetworkEncoder.sol";
 import "./lib/ValidatorMessageReceiver.sol";
 import "./lib/ValidatorRegistry.sol";
 
-contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, PausableUpgradeable {
+contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeable {
+    error InsufficientBalance();
+    error MinWithdrawTooLow();
+    error MintAmountZero();
+    error MintAmountTooBig();
+    error MintToContractAddress();
+    error MintAlreadyProcessed();
+    error InvalidTotalSupplyNonce();
+    error DeltaIsZero();
+    error UpdateAlreadyProcessed();
+    error AmountBelowMinWithdraw();
+    error InvalidBTCAddress();
+    error InvalidTotalSharesOrPooledBTC();
+
+    using BitcoinUtils for BitcoinNetworkEncoder.Network;
+
     BitcoinNetworkEncoder.Network public network;
 
     struct MintInvoice {
@@ -37,9 +52,7 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
     mapping(address => uint256) private shares;
 
     event MintBtcEvent(address indexed _to, uint256 _value, bytes32 _btcDepositId);
-
     event RedeemBtcEvent(address indexed _from, string _BTCAddress, uint256 _value, uint256 _id);
-
     event TotalSupplyUpdatedEvent(uint256 _nonce, uint256 _totalBTCSupply, uint256 _totalShares);
 
     function initialize(BitcoinNetworkEncoder.Network _network, ValidatorRegistry _validatorRegistry)
@@ -87,6 +100,7 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
      * @param value The number of tokens that are transferred/exchanged/burned.
      */
     function _update(address from, address to, uint256 value) internal override {
+        // mint
         if (from == address(0)) {
             uint256 sharesToMint = (_totalShares == 0 || _totalPooledBTC == 0) ? value : getSharesByPooledBTC(value);
 
@@ -98,10 +112,11 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
             }
         } else {
             uint256 fromBalance = balanceOf(from);
-            require(fromBalance >= value, "INSUFFICIENT_BALANCE");
+            if (fromBalance < value) revert InsufficientBalance();
 
             uint256 sharesToTransfer = getSharesByPooledBTC(value);
 
+            // burn
             if (to == address(0)) {
                 _totalPooledBTC -= value;
                 _totalShares -= sharesToTransfer;
@@ -110,6 +125,7 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
                     shares[from] -= sharesToTransfer;
                 }
             } else {
+                // transfer
                 unchecked {
                     shares[from] -= sharesToTransfer;
                     shares[to] += sharesToTransfer;
@@ -175,45 +191,8 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
      * @notice Only the contract owner can call this function.
      */
     function setMinWithdrawAmount(uint256 _minWithdrawAmount) public onlyOwner {
-        require(_minWithdrawAmount >= DUST_LIMIT, "Min withdraw amount should be greater or equal to dust limit");
-
+        if (_minWithdrawAmount < DUST_LIMIT) revert MinWithdrawTooLow();
         minWithdrawAmount = _minWithdrawAmount;
-    }
-
-    /**
-     * @dev Mint new tokens.
-     * Only the owner can call this function.
-     * TODO: delete this method before mainnet launch
-     * @param _amount The amount of tokens to mint.
-     * @param _recipient The address that will receive the minted tokens.
-     * @param _btcDepositId The id of the BTC deposit = keccak256(txHash, vout)
-     */
-    function mint(uint256 _amount, address _recipient, bytes32 _btcDepositId) public whenNotPaused onlyOwner {
-        _mint(_amount, _recipient, _btcDepositId);
-    }
-
-    /**
-     * @notice Adds rewards to the total pooled BTC and updates the supply state.
-     * TODO: delete this method before mainnet launch
-     * @dev This function is used to mint new rewards for the pool by increasing the `_totalPooledBTC`.
-     * @param nonce The current nonce for the total supply update, ensuring the correct order of updates.
-     * @param delta The amount of BTC to be added as rewards to the total pooled BTC.
-     */
-    function mintRewards(uint256 nonce, uint256 delta) external whenNotPaused onlyOwner {
-        require(nonce == totalSupplyUpdateNonce, "Invalid update total supply nonce");
-        totalSupplyUpdateNonce += 1;
-
-        if (delta == 0) {
-            revert("delta is 0");
-        }
-
-        bytes32 rewardId = getTotalSupplyUpdateHash(nonce, delta);
-        require(btcDepositIds[rewardId] == false, "UPDATE_ALREADY_PROCESSED");
-        btcDepositIds[rewardId] = true;
-
-        _totalPooledBTC += delta;
-
-        emit TotalSupplyUpdatedEvent(nonce, _totalPooledBTC, _totalShares);
     }
 
     // ========= Validators-only ========
@@ -242,15 +221,13 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
         whenNotPaused
         onlyValidator(MESSAGE_UPDATE_TOTAL_SUPPLY, encodeTotalSupplyUpdate(nonce, delta), signature)
     {
-        require(nonce == totalSupplyUpdateNonce, "Invalid update total supply nonce");
+        if (nonce != totalSupplyUpdateNonce) revert InvalidTotalSupplyNonce();
         totalSupplyUpdateNonce += 1;
 
-        if (delta == 0) {
-            revert("delta is 0");
-        }
+        if (delta == 0) revert DeltaIsZero();
 
         bytes32 rewardId = getTotalSupplyUpdateHash(nonce, delta);
-        require(btcDepositIds[rewardId] == false, "UPDATE_ALREADY_PROCESSED");
+        if (btcDepositIds[rewardId]) revert UpdateAlreadyProcessed();
         btcDepositIds[rewardId] = true;
 
         _totalPooledBTC += delta;
@@ -267,12 +244,11 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
      * @param _btcDepositId The id of the BTC deposit = keccak256(txHash, vout)
      */
     function _mint(uint256 _amount, address _recipient, bytes32 _btcDepositId) internal {
-        require(_amount > 0, "MINT_AMOUNT_ZERO");
-        require(_amount < 21_000_000 * BTC, "MINT_AMOUNT_TOO_BIG");
+        if (_amount == 0) revert MintAmountZero();
+        if (_amount >= 21_000_000 * BTC) revert MintAmountTooBig();
+        if (_recipient == address(this)) revert MintToContractAddress();
+        if (btcDepositIds[_btcDepositId]) revert MintAlreadyProcessed();
 
-        require(_recipient != address(this), "MINT_TO_THE_CONTRACT_ADDRESS");
-
-        require(btcDepositIds[_btcDepositId] == false, "MINT_ALREADY_PROCESSED");
         btcDepositIds[_btcDepositId] = true;
 
         _mint(_recipient, _amount);
@@ -289,10 +265,9 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
      * @param BTCAddress The Bitcoin address to receive the redeemed BTC.
      */
     function redeem(uint256 _amount, string calldata BTCAddress) public whenNotPaused {
-        require(_amount >= minWithdrawAmount, "The sent value must be greater or equal to min withdraw amount");
-        require(validateBitcoinAddress(network, BTCAddress), "The sent BTC address is not valid");
+        if (_amount < minWithdrawAmount) revert AmountBelowMinWithdraw();
+        if (!network.validateBitcoinAddress(BTCAddress)) revert InvalidBTCAddress();
 
-        // balance check in the following function
         _burn(msg.sender, _amount);
 
         redeemCounter += 1;
@@ -305,8 +280,7 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
      * @return The number of shares equivalent to the given stBTC amount.
      */
     function getSharesByPooledBTC(uint256 btcAmount) public view returns (uint256) {
-        require(_totalShares > 0 && _totalPooledBTC > 0, "stBTC: Invalid totalShares or totalPooledBTC");
-
+        if (_totalShares == 0 || _totalPooledBTC == 0) revert InvalidTotalSharesOrPooledBTC();
         return (btcAmount * _totalShares) / _totalPooledBTC;
     }
 
@@ -316,8 +290,7 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
      * @return The amount of stBTC equivalent to the given shares.
      */
     function getPooledBTCByShares(uint256 sharesAmount) public view returns (uint256) {
-        require(_totalShares > 0 && _totalPooledBTC > 0, "stBTC: Invalid totalShares or totalPooledBTC");
-
+        if (_totalShares == 0 || _totalPooledBTC == 0) revert InvalidTotalSharesOrPooledBTC();
         return (sharesAmount * _totalPooledBTC) / _totalShares;
     }
 }

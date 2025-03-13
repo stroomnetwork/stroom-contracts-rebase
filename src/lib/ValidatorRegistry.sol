@@ -13,6 +13,13 @@ contract ValidatorRegistry is Ownable, Bip340Ecrec {
     // Constant for the update validator public key message
     bytes public constant MESSAGE_UPDATE_JOINT_PUBLIC_KEY = "STROOM_UPDATE_JOINT_PUBLIC_KEY";
 
+    // Mapping of used nonces
+    mapping(bytes32 => bool) public usedNonces;
+
+    error NonceAlreadyUsed(bytes32 nonce);
+    error InvalidSignature();
+    error NoJointPublicKey();
+
     // Event to log the update of the validator public key
     event JointPublicKeyUpdated(bytes32 newjointPublicKey);
 
@@ -25,12 +32,15 @@ contract ValidatorRegistry is Ownable, Bip340Ecrec {
     }
 
     // Function to update the validator public key with a signature
-    function setJointPublicKeySigned(bytes32 _jointPublicKey, bytes calldata signature) public {
-        require(
-            validateMessage(MESSAGE_UPDATE_JOINT_PUBLIC_KEY, abi.encodePacked(_jointPublicKey), signature),
-            "ValidatorRegistry: INVALID_SIGNATURE"
-        );
+    function setJointPublicKeySigned(bytes32 _jointPublicKey, bytes32 _nonce, bytes calldata signature) public {
+        if (usedNonces[_nonce]) {
+            revert NonceAlreadyUsed(_nonce);
+        }
+        if (!validateMessage(MESSAGE_UPDATE_JOINT_PUBLIC_KEY, abi.encodePacked(_jointPublicKey, _nonce), signature)) {
+            revert InvalidSignature();
+        }
         jointPublicKey = _jointPublicKey;
+        usedNonces[_nonce] = true;
         emit JointPublicKeyUpdated(_jointPublicKey);
     }
 
@@ -41,7 +51,9 @@ contract ValidatorRegistry is Ownable, Bip340Ecrec {
 
     // Function to validate a message
     function validateMessageHash(bytes32 hash, bytes calldata signature) public view returns (bool) {
-        require(jointPublicKey != 0, "ValidatorRegistry: NO_JOINT_PUBLIC_KEY");
+        if (jointPublicKey == 0) {
+            revert NoJointPublicKey();
+        }
 
         // slice signature in two bytes32 blocks, rx and s
         uint256 rx = uint256(bytes32(signature[0:32]));
