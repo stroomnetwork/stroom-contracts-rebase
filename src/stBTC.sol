@@ -11,7 +11,7 @@ import "blockchain-tools/src/BitcoinNetworkEncoder.sol";
 import "./lib/ValidatorMessageReceiver.sol";
 import "./lib/ValidatorRegistry.sol";
 
-contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, PausableUpgradeable {
+contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeable {
     error InsufficientBalance();
     error MinWithdrawTooLow();
     error MintAmountZero();
@@ -24,6 +24,8 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
     error AmountBelowMinWithdraw();
     error InvalidBTCAddress();
     error InvalidTotalSharesOrPooledBTC();
+
+    using BitcoinUtils for BitcoinNetworkEncoder.Network;
 
     BitcoinNetworkEncoder.Network public network;
 
@@ -264,7 +266,7 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, BitcoinUtils, Paus
      */
     function redeem(uint256 _amount, string calldata BTCAddress) public whenNotPaused {
         if (_amount < minWithdrawAmount) revert AmountBelowMinWithdraw();
-        if (!validateBitcoinAddress(network, BTCAddress)) revert InvalidBTCAddress();
+        if (!network.validateBitcoinAddress(BTCAddress)) revert InvalidBTCAddress();
 
         _burn(msg.sender, _amount);
 
