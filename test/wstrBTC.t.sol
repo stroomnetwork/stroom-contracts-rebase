@@ -81,11 +81,15 @@ contract WstrBTCTest is Test {
         assertEq(finalStrBTCBalance, initialStrBTCBalance - strBTCAmount, "strBTC balance did not decrease correctly");
 
         uint256 finalWstrBTCBalance = wstrBTCContract.balanceOf(alice);
-        assertEq(finalWstrBTCBalance, initialWstrBTCBalance + expectedWstrBTC, "wstrBTC balance did not increase correctly");
+        assertEq(
+            finalWstrBTCBalance, initialWstrBTCBalance + expectedWstrBTC, "wstrBTC balance did not increase correctly"
+        );
 
         uint256 finalContractStrBTCBalance = strBTCContract.balanceOf(address(wstrBTCContract));
         assertEq(
-            finalContractStrBTCBalance, strBTCBalanceBefore + strBTCAmount, "strBTC balance of wstrBTC contract incorrect"
+            finalContractStrBTCBalance,
+            strBTCBalanceBefore + strBTCAmount,
+            "strBTC balance of wstrBTC contract incorrect"
         );
     }
 
@@ -237,7 +241,8 @@ contract WstrBTCTest is Test {
         assertEq(aliceWstrBTCBalance, wstrBTCMinted, "Alice's wstrBTC balance incorrect after wrap");
 
         vm.expectCall(
-            address(strBTCContract), abi.encodeWithSelector(strBTCContract.transfer.selector, alice, initialStrBTCAmount)
+            address(strBTCContract),
+            abi.encodeWithSelector(strBTCContract.transfer.selector, alice, initialStrBTCAmount)
         );
         wstrBTCContract.unwrap(wstrBTCMinted);
         vm.stopPrank();
@@ -326,9 +331,13 @@ contract WstrBTCTest is Test {
         uint256 totalPooledStrBTCAfterRebase = strBTCContract.totalSupply();
         uint256 aliceStrBTCBalanceAfterRebase = strBTCContract.balanceOf(alice);
 
-        assertGe(totalPooledStrBTCAfterRebase, initialTotalPooledStrBTC, "Total pooled strBTC after rebase should increase");
         assertGe(
-            aliceStrBTCBalanceAfterRebase, initialAliceStrBTCBalance, "Alice's strBTC balance after rebase should increase"
+            totalPooledStrBTCAfterRebase, initialTotalPooledStrBTC, "Total pooled strBTC after rebase should increase"
+        );
+        assertGe(
+            aliceStrBTCBalanceAfterRebase,
+            initialAliceStrBTCBalance,
+            "Alice's strBTC balance after rebase should increase"
         );
 
         vm.prank(alice);
@@ -525,7 +534,9 @@ contract WstrBTCTest is Test {
         expectedStrBTCPerToken = (strBTCBalance * BTC) / wstrBTCSupply;
         expectedTokensPerStrBTC = (wstrBTCSupply * BTC) / strBTCBalance;
 
-        assertEq(strBTCPerTokenAfterRebase, expectedStrBTCPerToken, "strBTCPerToken calculation after rebase is incorrect");
+        assertEq(
+            strBTCPerTokenAfterRebase, expectedStrBTCPerToken, "strBTCPerToken calculation after rebase is incorrect"
+        );
         assertEq(
             tokensPerStrBTCAfterRebase, expectedTokensPerStrBTC, "tokensPerStrBTC calculation after rebase is incorrect"
         );
