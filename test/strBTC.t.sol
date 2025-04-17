@@ -6,10 +6,10 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 import {ERC1967Utils} from "openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import {BitcoinNetworkEncoder} from "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
 
-import "../src/stBTC.sol";
+import "../src/strBTC.sol";
 
-contract STBTCTest is Test {
-    stBTC public token;
+contract STRBTCTest is Test {
+    strBTC public token;
 
     ValidatorRegistry public vr;
 
@@ -32,13 +32,13 @@ contract STBTCTest is Test {
 
         admin = msg.sender;
 
-        // Deploy stBTC implementation
-        stBTC stBtcImplementation = new stBTC();
-        bytes memory stBtcData =
-            abi.encodeWithSelector(stBTC.initialize.selector, BitcoinNetworkEncoder.Network.Mainnet, vr);
-        TransparentUpgradeableProxy stBtcProxy =
-            new TransparentUpgradeableProxy(address(stBtcImplementation), admin, stBtcData);
-        token = stBTC(address(stBtcProxy));
+        // Deploy strBTC implementation
+        strBTC strBtcImplementation = new strBTC();
+        bytes memory strBtcData =
+            abi.encodeWithSelector(strBTC.initialize.selector, BitcoinNetworkEncoder.Network.Mainnet, vr);
+        TransparentUpgradeableProxy strBtcProxy =
+            new TransparentUpgradeableProxy(address(strBtcImplementation), admin, strBtcData);
+        token = strBTC(address(strBtcProxy));
 
         alice = makeAddr("alice");
         bob = makeAddr("bob");
@@ -48,7 +48,7 @@ contract STBTCTest is Test {
         console.log("testTokenInfo");
 
         assertEq(token.name(), "Stroom Bitcoin");
-        assertEq(token.symbol(), "stBTC");
+        assertEq(token.symbol(), "strBTC");
         assertEq(token.decimals(), 8);
     }
 
@@ -60,8 +60,8 @@ contract STBTCTest is Test {
         assertEq(token.totalSupply(), 0, "Total supply should be 0 initially");
         assertEq(token.totalShares(), 0, "Total shares should be 0 initially");
 
-        stBTC.MintInvoice memory invoice =
-            stBTC.MintInvoice({btcDepositId: btcDepositId, recipient: alice, amount: mintAmount});
+        strBTC.MintInvoice memory invoice =
+            strBTC.MintInvoice({btcDepositId: btcDepositId, recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
         bytes memory signature =
@@ -82,8 +82,8 @@ contract STBTCTest is Test {
         uint256 mintAmount1 = 10 * BTC;
         bytes32 btcDepositId1 = keccak256(abi.encodePacked("txHash1", uint256(1)));
 
-        stBTC.MintInvoice memory invoice1 =
-            stBTC.MintInvoice({btcDepositId: btcDepositId1, recipient: alice, amount: mintAmount1});
+        strBTC.MintInvoice memory invoice1 =
+            strBTC.MintInvoice({btcDepositId: btcDepositId1, recipient: alice, amount: mintAmount1});
         bytes32 invoiceHash1 = token.getMintInvoiceHash(invoice1);
         console.logBytes32(invoiceHash1);
         bytes memory signature1 =
@@ -100,8 +100,8 @@ contract STBTCTest is Test {
         uint256 mintAmount2 = 5 * BTC;
         bytes32 btcDepositId2 = keccak256(abi.encodePacked("txHash2", uint256(2)));
 
-        stBTC.MintInvoice memory invoice2 =
-            stBTC.MintInvoice({btcDepositId: btcDepositId2, recipient: bob, amount: mintAmount2});
+        strBTC.MintInvoice memory invoice2 =
+            strBTC.MintInvoice({btcDepositId: btcDepositId2, recipient: bob, amount: mintAmount2});
         bytes32 invoiceHash2 = token.getMintInvoiceHash(invoice2);
         console.logBytes32(invoiceHash2);
         bytes memory signature2 =
@@ -126,8 +126,8 @@ contract STBTCTest is Test {
         uint256 mintAmount = 10 * BTC;
         bytes32 btcDepositId = keccak256(abi.encodePacked("txHash", uint256(1)));
 
-        stBTC.MintInvoice memory invoice =
-            stBTC.MintInvoice({btcDepositId: btcDepositId, recipient: alice, amount: mintAmount});
+        strBTC.MintInvoice memory invoice =
+            strBTC.MintInvoice({btcDepositId: btcDepositId, recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
         bytes memory signature =
@@ -135,7 +135,7 @@ contract STBTCTest is Test {
 
         token.mint(invoice, signature);
 
-        vm.expectRevert(stBTC.MintAlreadyProcessed.selector);
+        vm.expectRevert(strBTC.MintAlreadyProcessed.selector);
         token.mint(invoice, signature);
 
         assertEq(token.getShares(alice), mintAmount, "Alice's shares should remain unchanged");
@@ -145,15 +145,15 @@ contract STBTCTest is Test {
     function testMintWithValidSignature() public {
         uint256 mintAmountAlice = 10 * BTC;
         bytes32 btcDepositIdAlice = keccak256(abi.encodePacked("txHashAlice", uint256(1)));
-        stBTC.MintInvoice memory invoiceAlice =
-            stBTC.MintInvoice({btcDepositId: btcDepositIdAlice, recipient: alice, amount: mintAmountAlice});
+        strBTC.MintInvoice memory invoiceAlice =
+            strBTC.MintInvoice({btcDepositId: btcDepositIdAlice, recipient: alice, amount: mintAmountAlice});
         bytes32 invoiceAliceHash = token.getMintInvoiceHash(invoiceAlice);
         console.logBytes32(invoiceAliceHash);
 
         uint256 mintAmountBob = 15 * BTC;
         bytes32 btcDepositIdBob = keccak256(abi.encodePacked("txHashBob", uint256(2)));
-        stBTC.MintInvoice memory invoiceBob =
-            stBTC.MintInvoice({btcDepositId: btcDepositIdBob, recipient: bob, amount: mintAmountBob});
+        strBTC.MintInvoice memory invoiceBob =
+            strBTC.MintInvoice({btcDepositId: btcDepositIdBob, recipient: bob, amount: mintAmountBob});
         bytes32 invoiceBobHash = token.getMintInvoiceHash(invoiceBob);
         console.logBytes32(invoiceBobHash);
 
@@ -177,8 +177,8 @@ contract STBTCTest is Test {
     function testMintWithInvalidSignatureFails() public {
         uint256 mintAmountAlice = 10 * BTC;
         bytes32 btcDepositIdAlice = keccak256(abi.encodePacked("txHashAlice", uint256(1)));
-        stBTC.MintInvoice memory invoiceAlice =
-            stBTC.MintInvoice({btcDepositId: btcDepositIdAlice, recipient: alice, amount: mintAmountAlice});
+        strBTC.MintInvoice memory invoiceAlice =
+            strBTC.MintInvoice({btcDepositId: btcDepositIdAlice, recipient: alice, amount: mintAmountAlice});
 
         bytes memory invalidSignature =
             hex"1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef123456789abcdef1";
@@ -253,7 +253,7 @@ contract STBTCTest is Test {
             "Total pooled BTC mismatch after first mintRewards"
         );
 
-        vm.expectRevert(stBTC.InvalidTotalSupplyNonce.selector);
+        vm.expectRevert(strBTC.InvalidTotalSupplyNonce.selector);
         token.mintRewards(initialNonce, rewardAmount, validSignature);
 
         assertEq(
@@ -275,7 +275,7 @@ contract STBTCTest is Test {
         console.logBytes32(totalSupplyUpdateHash);
         bytes memory invalidSignature =
             hex"7cda4fa045056a574e22f07ef655e74a1640d2afbfb535fb5baf0acd8585085a77d63a352768de3cef51da248944af1a7f809f693b4838a21071ecb2bdc30abf";
-        vm.expectRevert(stBTC.InvalidTotalSupplyNonce.selector);
+        vm.expectRevert(strBTC.InvalidTotalSupplyNonce.selector);
         token.mintRewards(invalidNonce, rewardAmount, invalidSignature);
     }
 
@@ -284,8 +284,8 @@ contract STBTCTest is Test {
         uint256 redeemAmount = 5 * BTC;
         string memory validBTCAddress = "1JTFoeWo4xPrQuVidgmzqoVRXLmd8pjtU9";
 
-        stBTC.MintInvoice memory invoice =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
+        strBTC.MintInvoice memory invoice =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
         bytes memory signature =
@@ -313,8 +313,8 @@ contract STBTCTest is Test {
         uint256 invalidRedeemAmount = token.minWithdrawAmount() - 1;
         string memory validBTCAddress = "1JTFoeWo4xPrQuVidgmzqoVRXLmd8pjtU9";
 
-        stBTC.MintInvoice memory invoice =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
+        strBTC.MintInvoice memory invoice =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
         bytes memory signature =
@@ -325,7 +325,7 @@ contract STBTCTest is Test {
         assertEq(token.balanceOf(alice), mintAmount, "Initial balance mismatch");
 
         vm.prank(alice);
-        vm.expectRevert(stBTC.AmountBelowMinWithdraw.selector);
+        vm.expectRevert(strBTC.AmountBelowMinWithdraw.selector);
         token.redeem(invalidRedeemAmount, validBTCAddress);
 
         assertEq(token.balanceOf(alice), mintAmount, "Balance should remain unchanged after failed redeem");
@@ -338,8 +338,8 @@ contract STBTCTest is Test {
         uint256 redeemAmount = 1 * BTC;
         string memory invalidBTCAddress = "InvalidBTCAddress123";
 
-        stBTC.MintInvoice memory invoice =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
+        strBTC.MintInvoice memory invoice =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
         bytes memory signature =
@@ -350,7 +350,7 @@ contract STBTCTest is Test {
         assertEq(token.balanceOf(alice), mintAmount, "Initial balance mismatch");
 
         vm.prank(alice);
-        vm.expectRevert(stBTC.InvalidBTCAddress.selector);
+        vm.expectRevert(strBTC.InvalidBTCAddress.selector);
         token.redeem(redeemAmount, invalidBTCAddress);
 
         assertEq(token.balanceOf(alice), mintAmount, "Balance should remain unchanged after failed redeem");
@@ -363,8 +363,8 @@ contract STBTCTest is Test {
         uint256 redeemAmount = 5 * BTC;
         string memory validBTCAddress = "1JTFoeWo4xPrQuVidgmzqoVRXLmd8pjtU9";
 
-        stBTC.MintInvoice memory invoice =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
+        strBTC.MintInvoice memory invoice =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
         bytes memory signature =
@@ -389,8 +389,8 @@ contract STBTCTest is Test {
         uint256 mintAmount = 10 * BTC;
         uint256 transferAmount = 5 * BTC;
 
-        stBTC.MintInvoice memory invoice =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
+        strBTC.MintInvoice memory invoice =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
         bytes memory signature =
@@ -420,8 +420,8 @@ contract STBTCTest is Test {
         uint256 mintAmount = 10 * BTC;
         uint256 transferAmount = 15 * BTC;
 
-        stBTC.MintInvoice memory invoice =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
+        strBTC.MintInvoice memory invoice =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
         bytes memory signature =
@@ -432,7 +432,7 @@ contract STBTCTest is Test {
         assertEq(token.balanceOf(alice), mintAmount, "Alice's initial balance mismatch");
 
         vm.prank(alice);
-        vm.expectRevert(stBTC.InsufficientBalance.selector);
+        vm.expectRevert(strBTC.InsufficientBalance.selector);
         token.transfer(bob, transferAmount);
 
         assertEq(token.balanceOf(alice), mintAmount, "Alice's balance should remain unchanged");
@@ -443,8 +443,8 @@ contract STBTCTest is Test {
         uint256 mintAmount = 10 * BTC;
         uint256 transferAmount = 5 * BTC;
 
-        stBTC.MintInvoice memory invoice =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
+        strBTC.MintInvoice memory invoice =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
         bytes memory signature =
@@ -477,16 +477,16 @@ contract STBTCTest is Test {
         uint256 mintAmountAlice = 10 * BTC;
         uint256 mintAmountBob = 5 * BTC;
 
-        stBTC.MintInvoice memory invoiceAlice =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmountAlice});
+        strBTC.MintInvoice memory invoiceAlice =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmountAlice});
         bytes32 invoiceHashAlice = token.getMintInvoiceHash(invoiceAlice);
         console.logBytes32(invoiceHashAlice);
         bytes memory signatureAlice =
             hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
         token.mint(invoiceAlice, signatureAlice);
 
-        stBTC.MintInvoice memory invoiceBob =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit2"), recipient: bob, amount: mintAmountBob});
+        strBTC.MintInvoice memory invoiceBob =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit2"), recipient: bob, amount: mintAmountBob});
         bytes32 invoiceHashBob = token.getMintInvoiceHash(invoiceBob);
         console.logBytes32(invoiceHashBob);
         bytes memory signatureBob =
@@ -516,8 +516,8 @@ contract STBTCTest is Test {
         uint256 mintRewardAmount = 5 * BTC;
         uint256 redeemAmount = 5 * BTC;
 
-        stBTC.MintInvoice memory invoiceAlice =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmountAlice});
+        strBTC.MintInvoice memory invoiceAlice =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmountAlice});
         bytes32 invoiceHashAlice = token.getMintInvoiceHash(invoiceAlice);
         console.logBytes32(invoiceHashAlice);
         bytes memory signatureAlice =
@@ -560,8 +560,8 @@ contract STBTCTest is Test {
 
         token.pause();
 
-        stBTC.MintInvoice memory invoiceAlice =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: 10 * BTC});
+        strBTC.MintInvoice memory invoiceAlice =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: 10 * BTC});
         bytes32 invoiceHashAlice = token.getMintInvoiceHash(invoiceAlice);
         console.logBytes32(invoiceHashAlice);
         bytes memory signatureAlice =
@@ -601,22 +601,22 @@ contract STBTCTest is Test {
     }
 
     function testEdgeCases() public {
-        stBTC.MintInvoice memory invoiceZeroAmount =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: 0});
+        strBTC.MintInvoice memory invoiceZeroAmount =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: 0});
         bytes32 invoiceHashZeroAmount = token.getMintInvoiceHash(invoiceZeroAmount);
         console.logBytes32(invoiceHashZeroAmount);
         bytes memory signatureZeroAmount =
             hex"0a78867e5dced40470397b72963069ecfb66e9a030125974ecfacde8ce4e9ee93a1a01775aaae4b33e0a41e2379cbb46310ebf7fec9d8cf48650753d814b7871";
 
-        vm.expectRevert(stBTC.MintAmountZero.selector);
+        vm.expectRevert(strBTC.MintAmountZero.selector);
         token.mint(invoiceZeroAmount, signatureZeroAmount);
 
         vm.prank(alice);
-        vm.expectRevert(stBTC.AmountBelowMinWithdraw.selector);
+        vm.expectRevert(strBTC.AmountBelowMinWithdraw.selector);
         token.redeem(0, "1JTFoeWo4xPrQuVidgmzqoVRXLmd8pjtU9");
 
-        stBTC.MintInvoice memory invoice =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: 10 * BTC});
+        strBTC.MintInvoice memory invoice =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: 10 * BTC});
         bytes32 invoiceHash = token.getMintInvoiceHash(invoice);
         console.logBytes32(invoiceHash);
         bytes memory signature =
@@ -630,8 +630,8 @@ contract STBTCTest is Test {
         vm.prank(alice);
         assertEq(token.balanceOf(alice), 10 * BTC, "Balance should match initial mint");
 
-        stBTC.MintInvoice memory invoiceZeroAddress =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit2"), recipient: address(0), amount: 10 * BTC});
+        strBTC.MintInvoice memory invoiceZeroAddress =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit2"), recipient: address(0), amount: 10 * BTC});
         bytes32 invoiceHashZeroAddress = token.getMintInvoiceHash(invoiceZeroAddress);
         console.logBytes32(invoiceHashZeroAddress);
         bytes memory signatureZeroAddress =
@@ -641,7 +641,7 @@ contract STBTCTest is Test {
         token.mint(invoiceZeroAddress, signatureZeroAddress);
 
         vm.prank(alice);
-        vm.expectRevert(stBTC.InvalidBTCAddress.selector);
+        vm.expectRevert(strBTC.InvalidBTCAddress.selector);
         token.redeem(5 * BTC, "");
 
         vm.prank(alice);
@@ -673,14 +673,14 @@ contract STBTCTest is Test {
     function testRedeemWithInvalidAmount() public {
         uint256 mintAmount = 10 * BTC;
 
-        stBTC.MintInvoice memory invoice =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
+        strBTC.MintInvoice memory invoice =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes memory signature =
             hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
         token.mint(invoice, signature);
 
         vm.prank(alice);
-        vm.expectRevert(stBTC.InsufficientBalance.selector);
+        vm.expectRevert(strBTC.InsufficientBalance.selector);
         token.redeem(mintAmount + 1, "1JTFoeWo4xPrQuVidgmzqoVRXLmd8pjtU9");
     }
 
@@ -689,8 +689,8 @@ contract STBTCTest is Test {
         assertEq(token.getShares(alice), 0);
 
         uint256 mintAmount = 10 * BTC;
-        stBTC.MintInvoice memory invoice =
-            stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
+        strBTC.MintInvoice memory invoice =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount});
         bytes memory signature =
             hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
         token.mint(invoice, signature);
@@ -700,16 +700,16 @@ contract STBTCTest is Test {
     }
 
     function testGetPooledBTCByShares() public {
-        vm.expectRevert(stBTC.InvalidTotalSharesOrPooledBTC.selector);
+        vm.expectRevert(strBTC.InvalidTotalSharesOrPooledBTC.selector);
         token.getPooledBTCByShares(100);
 
-        vm.expectRevert(stBTC.InvalidTotalSharesOrPooledBTC.selector);
+        vm.expectRevert(strBTC.InvalidTotalSharesOrPooledBTC.selector);
         token.getSharesByPooledBTC(100);
 
         uint256 mintAmount1 = 10 * BTC;
         {
-            stBTC.MintInvoice memory invoice1 =
-                stBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount1});
+            strBTC.MintInvoice memory invoice1 =
+                strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: mintAmount1});
             bytes memory signature1 =
                 hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
             token.mint(invoice1, signature1);
@@ -717,8 +717,8 @@ contract STBTCTest is Test {
 
         uint256 mintAmount2 = 15 * BTC;
         {
-            stBTC.MintInvoice memory invoice2 =
-                stBTC.MintInvoice({btcDepositId: keccak256("deposit2"), recipient: alice, amount: mintAmount2});
+            strBTC.MintInvoice memory invoice2 =
+                strBTC.MintInvoice({btcDepositId: keccak256("deposit2"), recipient: alice, amount: mintAmount2});
             bytes memory signature2 =
                 hex"6e554675cfda2312235a42ee7e2fd27f649d2fb65c6e43019bc0adf84f4e6a15052627b0536139d29b00cde592a780805af57e90a96971ac26aea1ada07fa35f";
             token.mint(invoice2, signature2);

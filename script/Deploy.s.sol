@@ -3,8 +3,8 @@ pragma solidity ^0.8.27;
 
 import "forge-std/Script.sol";
 
-import "../src/stBTC.sol";
-import "../src/wstBTC.sol";
+import "../src/strBTC.sol";
+import "../src/wstrBTC.sol";
 import "../src/lib/UserActivator.sol";
 import "../src/lib/ValidatorRegistry.sol";
 import "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
@@ -25,20 +25,20 @@ contract DeployScript is Script {
 
         ValidatorRegistry vr = new ValidatorRegistry();
 
-        // Deploy stBTC implementation
-        stBTC stBtcImplementation = new stBTC();
-        stBtcImplementation.initialize(network, vr);
+        // Deploy strBTC implementation
+        strBTC strBtcImplementation = new strBTC();
+        strBtcImplementation.initialize(network, vr);
 
         address owner = vm.envAddress("OWNER_ADDRESS");
 
-        // Deploy stBTC proxy
-        bytes memory stBtcData = abi.encodeWithSelector(stBTC.initialize.selector, network, vr);
-        TransparentUpgradeableProxy stBtcProxy =
-            new TransparentUpgradeableProxy(address(stBtcImplementation), owner, stBtcData);
-        stBTC stBtcContract = stBTC(address(stBtcProxy));
+        // Deploy strBTC proxy
+        bytes memory strBtcData = abi.encodeWithSelector(strBTC.initialize.selector, network, vr);
+        TransparentUpgradeableProxy strBtcProxy =
+            new TransparentUpgradeableProxy(address(strBtcImplementation), owner, strBtcData);
+        strBTC strBtcContract = strBTC(address(strBtcProxy));
 
-        // Deploy wstBTC
-        wstBTC wstBtcContract = new wstBTC(address(stBtcContract));
+        // Deploy wstrBTC
+        wstrBTC wstrBtcContract = new wstrBTC(address(strBtcContract));
 
         UserActivator activator = new UserActivator();
 
@@ -49,12 +49,12 @@ contract DeployScript is Script {
         console.log();
         console.logString(
             string.concat(
-                "APP_ETH_STBTC_ADDRESS=", OpenZeppelinStrings.toHexString(uint256(uint160(address(stBtcContract))))
+                "APP_ETH_STRBTC_ADDRESS=", OpenZeppelinStrings.toHexString(uint256(uint160(address(strBtcContract))))
             )
         );
         console.logString(
             string.concat(
-                "APP_ETH_WSTBTC_ADDRESS=", OpenZeppelinStrings.toHexString(uint256(uint160(address(wstBtcContract))))
+                "APP_ETH_WSTRBTC_ADDRESS=", OpenZeppelinStrings.toHexString(uint256(uint160(address(wstrBtcContract))))
             )
         );
         console.logString(
