@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.27;
 
-interface IStBTC {
+interface IStrBTC {
     function totalSupply() external view returns (uint256);
     function totalShares() external view returns (uint256);
     function balanceOf(address account) external view returns (uint256);

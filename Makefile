@@ -37,11 +37,11 @@ go-init: ## Initialize Go module
 	go mod tidy
 
 .PHONY: export-abi
-export-abi: build ## Export contracts ABI and bytecode for stBTC, wstBTC
-	cat ./out/stBTC.sol/stBTC.json | jq -r '.abi' > ./out/stBTC.abi.json
-	cat ./out/stBTC.sol/stBTC.json | jq -r '.bytecode.object' | sed 's/0x//' > ./out/stBTC.bin
-	cat ./out/wstBTC.sol/wstBTC.json | jq -r '.abi' > ./out/wstBTC.abi.json
-	cat ./out/wstBTC.sol/wstBTC.json | jq -r '.bytecode.object' | sed 's/0x//' > ./out/wstBTC.bin
+export-abi: build ## Export contracts ABI and bytecode for strBTC, wstrBTC
+	cat ./out/strBTC.sol/strBTC.json | jq -r '.abi' > ./out/strBTC.abi.json
+	cat ./out/strBTC.sol/strBTC.json | jq -r '.bytecode.object' | sed 's/0x//' > ./out/strBTC.bin
+	cat ./out/wstrBTC.sol/wstrBTC.json | jq -r '.abi' > ./out/wstrBTC.abi.json
+	cat ./out/wstrBTC.sol/wstrBTC.json | jq -r '.bytecode.object' | sed 's/0x//' > ./out/wstrBTC.bin
 	cat ./out/UserActivator.sol/UserActivator.json | jq -r '.abi' > ./out/UserActivator.abi.json
 	cat ./out/UserActivator.sol/UserActivator.json | jq -r '.bytecode.object' | sed 's/0x//' > ./out/UserActivator.bin
 	cat ./out/ValidatorRegistry.sol/ValidatorRegistry.json | jq -r '.abi' > ./out/ValidatorRegistry.abi.json
@@ -52,8 +52,8 @@ export-abi: build ## Export contracts ABI and bytecode for stBTC, wstBTC
 ## Go Bindings
 .PHONY: go-gen
 go-gen: build export-abi ## Generate Go bindings
-	abigen --abi ./out/stBTC.abi.json --bin ./out/stBTC.bin --lang go --pkg ${GO_ABI_DIR} --type StBtc --out ./${GO_ABI_DIR}/stbtc.go
-	abigen --abi ./out/wstBTC.abi.json --bin ./out/wstBTC.bin --lang go --pkg ${GO_ABI_DIR} --type WStBtc --out ./${GO_ABI_DIR}/wstbtc.go
+	abigen --abi ./out/strBTC.abi.json --bin ./out/strBTC.bin --lang go --pkg ${GO_ABI_DIR} --type StrBtc --out ./${GO_ABI_DIR}/strbtc.go
+	abigen --abi ./out/wstrBTC.abi.json --bin ./out/wstrBTC.bin --lang go --pkg ${GO_ABI_DIR} --type WStrBtc --out ./${GO_ABI_DIR}/wstrbtc.go
 	abigen --abi ./out/UserActivator.abi.json --bin ./out/UserActivator.bin --lang go --pkg ${GO_ABI_DIR} --type UserActivator --out ./${GO_ABI_DIR}/user_activator.go
 	abigen --abi ./out/ValidatorRegistry.abi.json --bin ./out/ValidatorRegistry.bin --lang go --pkg ${GO_ABI_DIR} --type ValidatorRegistry --out ./${GO_ABI_DIR}/validator_registry.go
 	abigen --abi ./out/TransparentUpgradeableProxy.abi.json --bin ./out/TransparentUpgradeableProxy.bin --lang go --pkg ${GO_ABI_DIR} --type TransparentUpgradeableProxy --out ./${GO_ABI_DIR}/proxy.go
@@ -61,8 +61,8 @@ go-gen: build export-abi ## Generate Go bindings
 .PHONY: go-gen-test
 go-gen-test: build export-abi ## Verify Go bindings
 	mkdir -p ./build/tmp/${GO_ABI_DIR}
-	abigen --abi ./out/stBTC.abi.json --bin ./out/stBTC.bin --lang go --pkg ${GO_ABI_DIR} --type StBtc --out ./build/tmp/${GO_ABI_DIR}/stbtc.go
-	abigen --abi ./out/wstBTC.abi.json --bin ./out/wstBTC.bin --lang go --pkg ${GO_ABI_DIR} --type wStBtc --out ./build/tmp/${GO_ABI_DIR}/wstbtc.go
+	abigen --abi ./out/strBTC.abi.json --bin ./out/strBTC.bin --lang go --pkg ${GO_ABI_DIR} --type StrBtc --out ./build/tmp/${GO_ABI_DIR}/strbtc.go
+	abigen --abi ./out/wstrBTC.abi.json --bin ./out/wstrBTC.bin --lang go --pkg ${GO_ABI_DIR} --type WStrBtc --out ./build/tmp/${GO_ABI_DIR}/wstrbtc.go
 	abigen --abi ./out/UserActivator.abi.json --bin ./out/UserActivator.bin --lang go --pkg ${GO_ABI_DIR} --type UserActivator --out ./build/tmp/${GO_ABI_DIR}/user_activator.go
 	abigen --abi ./out/ValidatorRegistry.abi.json --bin ./out/ValidatorRegistry.bin --lang go --pkg ${GO_ABI_DIR} --type ValidatorRegistry --out ./build/tmp/${GO_ABI_DIR}/validator_registry.go
 	abigen --abi ./out/TransparentUpgradeableProxy.abi.json --bin ./out/TransparentUpgradeableProxy.bin --lang go --pkg ${GO_ABI_DIR} --type TransparentUpgradeableProxy --out ./build/tmp/${GO_ABI_DIR}/proxy.go

@@ -1,8 +1,8 @@
 # Stroom Smart Contracts
 
-## stBTC
+## strBTC
 
-stBTC is an ERC20 token with a rebase mechanism that represents a share in the Stroom Lightning Network pool. Each user's balance is automatically updated during a rebase to reflect pool growth (e.g., from earned rewards).
+strBTC is an ERC20 token with a rebase mechanism that represents a share in the Stroom Lightning Network pool. Each user's balance is automatically updated during a rebase to reflect pool growth (e.g., from earned rewards).
 
 The rebase mechanism is implemented through the relationship between the user's shares and the total amount of staked BTC in the pool (`totalPooledBTC`). This ensures automatic distribution of rewards among tokens without requiring explicit balance updates for each user.
 
@@ -27,33 +27,33 @@ The rebase mechanism is implemented through the relationship between the user's 
 
 #### Redeem
 
-- Converts stBTC tokens into an equivalent amount of BTC.
+- Converts strBTC tokens into an equivalent amount of BTC.
 - Includes validation of Bitcoin addresses.
 
 ---
 
-## wstBTC
+## wstrBTC
 
-**wstBTC** is a wrapper for the rebase token **stBTC**, which locks user shares. This ensures compatibility with DeFi protocols that do not support rebase tokens.
+**wstrBTC** is a wrapper for the rebase token **strBTC**, which locks user shares. This ensures compatibility with DeFi protocols that do not support rebase tokens.
 
 ### Key Functions
 
 #### Wrap
 
-- Converts `stBTC` to `wstBTC`.
+- Converts `strBTC` to `wstrBTC`.
 - Locks user shares to maintain balance stability.
 - Protects against balance changes due to rebase.
 
 #### Unwrap
 
-- Converts `wstBTC` back to `stBTC`.
+- Converts `wstrBTC` back to `strBTC`.
 - Allows users to retrieve tokens with updated balances after a rebase.
 
 ---
 
 ## High-Level Architecture
 
-### stBTC
+### strBTC
 
 - **`totalSupply`** — The total amount of BTC staked in the pool.
 - **`totalShares`** — The total number of shares in the pool.
@@ -63,27 +63,27 @@ The rebase mechanism is implemented through the relationship between the user's 
     balanceOf(account) = (shares[account] * totalSupply) / totalShares
     ```
 
-### wstBTC
+### wstrBTC
 
 - Locks user shares to provide fixed balances.
 - Compatible with DeFi protocols that do not support rebase tokens.
 - Calculates shares and balances using the following formulas:
 
     ```solidity
-    wstBTC = (stBtcAmount * totalShares) / totalSupply
-    stBTC = (sharesAmount * totalSupply) / totalShares
+    wstrBTC = (strBTCAmount * totalShares) / totalSupply
+    strBTC = (sharesAmount * totalSupply) / totalShares
     ```
 
 ## Reward Minting Process for the Rebase Token
 
 1. **Validator Signature**  
-   A validator signs a message to mint new `stBTC` with the specified delta amount.
+   A validator signs a message to mint new `strBTC` with the specified delta amount.
 
 2. **Increase Total Supply**  
-   The `stBTC.mintRewards()` function increases the `totalSupply` of `stBTC` by the delta amount.
+   The `strBTC.mintRewards()` function increases the `totalSupply` of `strBTC` by the delta amount.
 
 3. **Rewards Distribution**  
-   The newly minted `stBTC` is added to the pool, automatically distributed to token holders through the rebase mechanism.
+   The newly minted `strBTC` is added to the pool, automatically distributed to token holders through the rebase mechanism.
 
 4. **Shares Remain Constant**  
    The total shares (`totalShares`) remain constant, ensuring that ownership percentages do not change.
@@ -98,7 +98,7 @@ The rebase mechanism is implemented through the relationship between the user's 
 make go-gen
 ```
 
-The above goal produces `abistroom/stbtc.go` with Go bindings for the compiled contract ABI.
+The above goal produces `abistroom/strbtc.go` with Go bindings for the compiled contract ABI.
 
 Changing the contract should cause releasing a new version by publishing a new tag.
 Tag should be a valid [Semantic Versioning](https://semver.org/) number. 

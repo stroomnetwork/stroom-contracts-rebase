@@ -3,12 +3,12 @@ pragma solidity ^0.8.27;
 
 import {Test} from "forge-std/Test.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import "../src/stBTC.sol";
+import "../src/strBTC.sol";
 import "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
 
 contract ValidatorRegistryTest is Test {
     ValidatorRegistry public vr;
-    stBTC public token;
+    strBTC public token;
 
     address public admin;
     address public alice;
@@ -17,14 +17,14 @@ contract ValidatorRegistryTest is Test {
         vr = new ValidatorRegistry();
         admin = msg.sender;
 
-        // Deploy stBTC
-        stBTC stBtcImplementation = new stBTC();
-        bytes memory stBtcData =
-            abi.encodeWithSelector(stBTC.initialize.selector, BitcoinNetworkEncoder.Network.Testnet, vr);
-        TransparentUpgradeableProxy stBtcProxy =
-            new TransparentUpgradeableProxy(address(stBtcImplementation), admin, stBtcData);
+        // Deploy strBTC
+        strBTC strBtcImplementation = new strBTC();
+        bytes memory strBtcData =
+            abi.encodeWithSelector(strBTC.initialize.selector, BitcoinNetworkEncoder.Network.Testnet, vr);
+        TransparentUpgradeableProxy strBtcProxy =
+            new TransparentUpgradeableProxy(address(strBtcImplementation), admin, strBtcData);
 
-        token = stBTC(address(stBtcProxy));
+        token = strBTC(address(strBtcProxy));
 
         alice = makeAddr("Alice");
     }

@@ -14,8 +14,8 @@ const (
 
 // List of files to test for ABI compatibility
 var filesToTest = []string{
-	"stbtc.go",
-	"wstbtc.go",
+	"strbtc.go",
+	"wstrbtc.go",
 	"user_activator.go",
 	"validator_registry.go",
 	"proxy.go",

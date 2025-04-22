@@ -11,7 +11,7 @@ import "blockchain-tools/src/BitcoinNetworkEncoder.sol";
 import "./lib/ValidatorMessageReceiver.sol";
 import "./lib/ValidatorRegistry.sol";
 
-contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeable {
+contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeable {
     error InsufficientBalance();
     error MinWithdrawTooLow();
     error MintAmountZero();
@@ -59,7 +59,7 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeabl
         public
         initializer
     {
-        ERC20Upgradeable.__ERC20_init("Stroom Bitcoin", "stBTC");
+        ERC20Upgradeable.__ERC20_init("Stroom Bitcoin", "strBTC");
         PausableUpgradeable.__Pausable_init();
         ValidatorMessageReceiver.initialize(_validatorRegistry);
 
@@ -259,9 +259,9 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeabl
     // ========= Public ========
 
     /**
-     * @notice Redeems stBTC for its underlying Bitcoin by burning the specified amount of tokens.
-     * @dev This function allows users to convert their stBTC holdings back into Bitcoin.
-     * @param _amount The amount of stBTC to redeem for Bitcoin.
+     * @notice Redeems strBTC for its underlying Bitcoin by burning the specified amount of tokens.
+     * @dev This function allows users to convert their strBTC holdings back into Bitcoin.
+     * @param _amount The amount of strBTC to redeem for Bitcoin.
      * @param BTCAddress The Bitcoin address to receive the redeemed BTC.
      */
     function redeem(uint256 _amount, string calldata BTCAddress) public whenNotPaused {
@@ -275,9 +275,9 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeabl
     }
 
     /**
-     * @notice Calculates the number of shares corresponding to a given amount of staked BTC (stBTC).
-     * @param btcAmount The amount of stBTC to convert to shares.
-     * @return The number of shares equivalent to the given stBTC amount.
+     * @notice Calculates the number of shares corresponding to a given amount of staked BTC (strBTC).
+     * @param btcAmount The amount of strBTC to convert to shares.
+     * @return The number of shares equivalent to the given strBTC amount.
      */
     function getSharesByPooledBTC(uint256 btcAmount) public view returns (uint256) {
         if (_totalShares == 0 || _totalPooledBTC == 0) revert InvalidTotalSharesOrPooledBTC();
@@ -285,9 +285,9 @@ contract stBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeabl
     }
 
     /**
-     * @notice Calculates the amount of stBTC corresponding to a given number of shares.
-     * @param sharesAmount The number of shares to convert to stBTC.
-     * @return The amount of stBTC equivalent to the given shares.
+     * @notice Calculates the amount of strBTC corresponding to a given number of shares.
+     * @param sharesAmount The number of shares to convert to strBTC.
+     * @return The amount of strBTC equivalent to the given shares.
      */
     function getPooledBTCByShares(uint256 sharesAmount) public view returns (uint256) {
         if (_totalShares == 0 || _totalPooledBTC == 0) revert InvalidTotalSharesOrPooledBTC();
