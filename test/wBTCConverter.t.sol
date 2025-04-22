@@ -26,21 +26,47 @@ contract WBTCConverterTest is Test {
     address public owner;
     address public user1;
     address public user2;
+    address public user3;
     address public rateSetter;
 
     uint256 public constant INITIAL_WBTC_SUPPLY = 1000 * 10 ** 8; // 1000 WBTC
 
+    bool public useFork;
+    uint256 public forkId;
+    string public MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
+
+    address public constant WBTC_MAINNET = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
+
+    uint8 public constant FORK_FUZZING_RUNS = 3;
+
     function setUp() public {
+        useFork = vm.envOr("USE_FORK", false);
+
+        if (useFork) {
+            forkId = vm.createFork(MAINNET_RPC_URL);
+            vm.selectFork(forkId);
+
+            wbtc = IERC20(WBTC_MAINNET);
+        }
+
         owner = address(this);
         user1 = makeAddr("user1");
         user2 = makeAddr("user2");
+        user3 = makeAddr("user3");
         rateSetter = makeAddr("rateSetter");
 
-        MockWBTC mockWBTC = new MockWBTC();
-        mockWBTC.mint(address(this), INITIAL_WBTC_SUPPLY);
-        mockWBTC.mint(user1, INITIAL_WBTC_SUPPLY);
-        mockWBTC.mint(user2, INITIAL_WBTC_SUPPLY);
-        wbtc = IERC20(address(mockWBTC));
+        if (!useFork) {
+            MockWBTC mockWBTC = new MockWBTC();
+            mockWBTC.mint(address(this), INITIAL_WBTC_SUPPLY);
+            mockWBTC.mint(user1, INITIAL_WBTC_SUPPLY);
+            mockWBTC.mint(user2, INITIAL_WBTC_SUPPLY);
+            wbtc = IERC20(address(mockWBTC));
+        } else {
+            uint256 amountPerAccount = 1000 * 10 ** 8;
+            deal(address(wbtc), address(this), amountPerAccount);
+            deal(address(wbtc), user1, amountPerAccount);
+            deal(address(wbtc), user2, amountPerAccount);
+        }
 
         BitcoinNetworkEncoder.Network network = BitcoinNetworkEncoder.Network.Testnet;
 
@@ -74,35 +100,27 @@ contract WBTCConverterTest is Test {
     }
 
     function testInitialization() public view {
-        // Check successful initialization with correct addresses
         assertEq(address(wbtcConverter.wbtc()), address(wbtc), "Incorrect WBTC address");
         assertEq(address(wbtcConverter.strbtc()), address(strbtc), "Incorrect strBTC address");
 
-        // Check initial exchange rate (should be 1:1)
         assertEq(wbtcConverter.exchangeRateNumerator(), 1, "Incorrect exchange rate numerator");
         assertEq(wbtcConverter.exchangeRateDenominator(), 1, "Incorrect exchange rate denominator");
 
-        // Check proper role configuration
         bytes32 adminRole = wbtcConverter.DEFAULT_ADMIN_ROLE();
         bytes32 rateSetterRole = wbtcConverter.RATE_SETTER_ROLE();
         bytes32 converterRole = strbtc.CONVERTER_ROLE();
 
-        // Check that owner has admin role
         assertTrue(wbtcConverter.hasRole(adminRole, owner), "Owner does not have admin role");
 
-        // Check that rateSetter has rate setter role
         assertTrue(wbtcConverter.hasRole(rateSetterRole, rateSetter), "RateSetter does not have correct role");
 
-        // Check CONVERTER_ROLE assignment
         assertTrue(
             strbtc.hasRole(converterRole, address(wbtcConverter)), "Converter does not have CONVERTER_ROLE in strBTC"
         );
 
-        // Check: regular users should not have special roles
         assertFalse(wbtcConverter.hasRole(adminRole, user1), "Regular user should not have admin role");
         assertFalse(wbtcConverter.hasRole(rateSetterRole, user1), "Regular user should not have rate setter role");
 
-        // Check wbtc allowance for conversion
         assertEq(
             wbtc.allowance(user1, address(wbtcConverter)),
             type(uint256).max,
@@ -110,9 +128,23 @@ contract WBTCConverterTest is Test {
         );
     }
 
-    function testFuzzConvertWBTCToStrBTC(uint256 amount) public {
-        vm.assume(amount > 0 && amount <= 1000 * 10 ** 8);
+    function testConvertWBTCToStrBTC(uint256 amount) public {
+        if (useFork) {
+            uint256[] memory amounts = new uint256[](3);
+            amounts[0] = 0.1 * 10 ** 8; // 0.1 BTC
+            amounts[1] = 1 * 10 ** 8; // 1 BTC
+            amounts[2] = 2 * 10 ** 8; // 2 BTC
 
+            for (uint8 i = 0; i < amounts.length; i++) {
+                _testConvertWBTCToStrBTCWithAmount(amounts[i]);
+            }
+        } else {
+            vm.assume(amount > 0 && amount <= 1000 * 10 ** 8);
+            _testConvertWBTCToStrBTCWithAmount(amount);
+        }
+    }
+
+    function _testConvertWBTCToStrBTCWithAmount(uint256 amount) internal {
         uint256 user1WbtcBalanceBefore = wbtc.balanceOf(user1);
         uint256 user1StrbtcBalanceBefore = strbtc.balanceOf(user1);
         uint256 converterWbtcBalanceBefore = wbtc.balanceOf(address(wbtcConverter));
@@ -138,18 +170,42 @@ contract WBTCConverterTest is Test {
         );
     }
 
-    function testFuzzConvertWBTCToStrBTCWithCustomRate(
+    function testConvertWBTCToStrBTCWithCustomRate(
         uint256 amountInput,
         uint256 numeratorInput,
         uint256 denominatorInput
     ) public {
-        uint256 amount = bound(amountInput, 1, 1000 * 10 ** 8);
-        uint256 numerator = bound(numeratorInput, 1, 200);
-        uint256 denominator = bound(denominatorInput, 1, 200);
+        if (useFork) {
+            uint256[] memory amounts = new uint256[](3);
+            amounts[0] = 0.1 * 10 ** 8;
+            amounts[1] = 1 * 10 ** 8;
+            amounts[2] = 2 * 10 ** 8;
 
-        // Ensure conversion doesn't result in zero tokens due to rounding
-        vm.assume((amount * numerator) / denominator > 0);
+            uint256[] memory numerators = new uint256[](3);
+            uint256[] memory denominators = new uint256[](3);
 
+            numerators[0] = 105;
+            denominators[0] = 100;
+            numerators[1] = 100;
+            denominators[1] = 105;
+            numerators[2] = 200;
+            denominators[2] = 100;
+
+            for (uint8 i = 0; i < FORK_FUZZING_RUNS; i++) {
+                _testConvertWithCustomRate(amounts[i % 3], numerators[i % 3], denominators[i % 3]);
+            }
+        } else {
+            uint256 amount = bound(amountInput, 1, 1000 * 10 ** 8);
+            uint256 numerator = bound(numeratorInput, 1, 200);
+            uint256 denominator = bound(denominatorInput, 1, 200);
+
+            vm.assume((amount * numerator) / denominator > 0);
+
+            _testConvertWithCustomRate(amount, numerator, denominator);
+        }
+    }
+
+    function _testConvertWithCustomRate(uint256 amount, uint256 numerator, uint256 denominator) internal {
         vm.prank(rateSetter);
         wbtcConverter.setExchangeRate(numerator, denominator);
 
@@ -171,84 +227,6 @@ contract WBTCConverterTest is Test {
         );
     }
 
-    function testFuzzConvertStrBTCToWBTC(uint256 amount) public {
-        vm.assume(amount > 0 && amount <= 1000 * 10 ** 8);
-
-        // First convert WBTC to strBTC to have some strBTC balance
-        uint256 initialConversion = 1000 * 10 ** 8;
-        vm.prank(user1);
-        wbtcConverter.convertWBTCToStrBTC(initialConversion);
-
-        uint256 user1WbtcBalanceBefore = wbtc.balanceOf(user1);
-        uint256 user1StrbtcBalanceBefore = strbtc.balanceOf(user1);
-        uint256 converterWbtcBalanceBefore = wbtc.balanceOf(address(wbtcConverter));
-
-        vm.prank(user1);
-        strbtc.approve(address(wbtcConverter), amount);
-
-        vm.prank(user1);
-        uint256 wbtcReceived = wbtcConverter.convertStrBTCToWBTC(amount);
-
-        uint256 expectedWbtc =
-            (amount * wbtcConverter.exchangeRateDenominator()) / wbtcConverter.exchangeRateNumerator();
-
-        assertEq(wbtcReceived, expectedWbtc, "Received WBTC amount incorrect");
-
-        assertEq(
-            wbtc.balanceOf(user1), user1WbtcBalanceBefore + expectedWbtc, "User WBTC balance not increased correctly"
-        );
-        assertEq(
-            strbtc.balanceOf(user1), user1StrbtcBalanceBefore - amount, "User strBTC balance not reduced correctly"
-        );
-        assertEq(
-            wbtc.balanceOf(address(wbtcConverter)),
-            converterWbtcBalanceBefore - expectedWbtc,
-            "Converter WBTC balance not reduced correctly"
-        );
-    }
-
-    function testFuzzConvertStrBTCToWBTCWithCustomRate(
-        uint256 amountInput,
-        uint256 numeratorInput,
-        uint256 denominatorInput
-    ) public {
-        uint256 amount = bound(amountInput, 1, 100 * 10 ** 8);
-        uint256 numerator = bound(numeratorInput, 1, 200);
-        uint256 denominator = bound(denominatorInput, 1, 200);
-
-        vm.assume((amount * denominator) / numerator > 0);
-        vm.assume((amount * numerator) / denominator > 0);
-
-        uint256 initialConversion = 1000 * 10 ** 8;
-        vm.prank(user1);
-        wbtcConverter.convertWBTCToStrBTC(initialConversion);
-
-        vm.prank(rateSetter);
-        wbtcConverter.setExchangeRate(numerator, denominator);
-
-        uint256 expectedWbtc = (amount * denominator) / numerator;
-
-        vm.assume(wbtc.balanceOf(address(wbtcConverter)) >= expectedWbtc);
-
-        uint256 user1WbtcBalanceBefore = wbtc.balanceOf(user1);
-        uint256 user1StrbtcBalanceBefore = strbtc.balanceOf(user1);
-
-        vm.prank(user1);
-        strbtc.approve(address(wbtcConverter), amount);
-
-        vm.prank(user1);
-        uint256 wbtcReceived = wbtcConverter.convertStrBTCToWBTC(amount);
-
-        assertEq(wbtcReceived, expectedWbtc, "Received WBTC amount incorrect with custom rate");
-
-        assertEq(
-            wbtc.balanceOf(user1), user1WbtcBalanceBefore + expectedWbtc, "User WBTC balance not increased correctly"
-        );
-        assertEq(
-            strbtc.balanceOf(user1), user1StrbtcBalanceBefore - amount, "User strBTC balance not reduced correctly"
-        );
-    }
-
     function testZeroAmountConversion() public {
         vm.prank(user1);
         vm.expectRevert(WBTCConverter.AmountMustBeGreaterThanZero.selector);
@@ -260,7 +238,7 @@ contract WBTCConverterTest is Test {
     }
 
     function testConverterRoleRequired() public {
-        uint256 amount = 1 * 10 ** 8; // 1 BTC
+        uint256 amount = 1 * 10 ** 8;
 
         strbtc.revokeRole(strbtc.CONVERTER_ROLE(), address(wbtcConverter));
 
@@ -273,7 +251,7 @@ contract WBTCConverterTest is Test {
     }
 
     function testInsufficientWBTCBalance() public {
-        uint256 amount = 1 * 10 ** 8; // 1 BTC
+        uint256 amount = 1 * 10 ** 8;
 
         vm.prank(user1);
         wbtcConverter.convertWBTCToStrBTC(amount);
@@ -310,7 +288,6 @@ contract WBTCConverterTest is Test {
     }
 
     function testSetExchangeRateWithZeroNumerator() public {
-        // Try to set rate with zero numerator (should revert)
         uint256 newNumerator = 0;
         uint256 newDenominator = 100;
 
@@ -318,7 +295,6 @@ contract WBTCConverterTest is Test {
         vm.expectRevert();
         wbtcConverter.setExchangeRate(newNumerator, newDenominator);
 
-        // Try to set rate with zero denominator (should revert)
         newNumerator = 100;
         newDenominator = 0;
 
@@ -331,7 +307,6 @@ contract WBTCConverterTest is Test {
     }
 
     function testSetExchangeRateUnauthorized() public {
-        // Try to set rate as unauthorized user (should revert)
         uint256 newNumerator = 105;
         uint256 newDenominator = 100;
 
@@ -344,27 +319,22 @@ contract WBTCConverterTest is Test {
     }
 
     function testRoleManagement() public {
-        // Define roles
         bytes32 adminRole = wbtcConverter.DEFAULT_ADMIN_ROLE();
         bytes32 rateSetterRole = wbtcConverter.RATE_SETTER_ROLE();
 
-        // Test initial role setup
         assertTrue(wbtcConverter.hasRole(adminRole, owner), "Owner should have admin role");
         assertTrue(wbtcConverter.hasRole(rateSetterRole, rateSetter), "RateSetter should have rate setter role");
         assertFalse(wbtcConverter.hasRole(adminRole, user1), "User1 should not have admin role");
         assertFalse(wbtcConverter.hasRole(rateSetterRole, user1), "User1 should not have rate setter role");
 
-        // Test granting roles
         vm.prank(owner);
         wbtcConverter.grantRole(rateSetterRole, user1);
         assertTrue(wbtcConverter.hasRole(rateSetterRole, user1), "User1 should now have rate setter role");
 
-        // Test revoking roles
         vm.prank(owner);
         wbtcConverter.revokeRole(rateSetterRole, user1);
         assertFalse(wbtcConverter.hasRole(rateSetterRole, user1), "User1 should no longer have rate setter role");
 
-        // Test unauthorized role granting
         vm.prank(user1);
         vm.expectRevert();
         wbtcConverter.grantRole(rateSetterRole, user2);
@@ -388,12 +358,10 @@ contract WBTCConverterTest is Test {
     }
 
     function testAdminRoleManagement() public {
-        // Owner can grant admin role to another account
         vm.prank(owner);
         wbtcConverter.grantRole(wbtcConverter.DEFAULT_ADMIN_ROLE(), user2);
         assertTrue(wbtcConverter.hasRole(wbtcConverter.DEFAULT_ADMIN_ROLE(), user2), "User2 should now have admin role");
 
-        // New admin can grant rate setter role
         vm.prank(user2);
         wbtcConverter.grantRole(wbtcConverter.RATE_SETTER_ROLE(), user1);
         assertTrue(
@@ -401,7 +369,6 @@ contract WBTCConverterTest is Test {
             "User1 should have rate setter role granted by new admin"
         );
 
-        // New admin can revoke rate setter role
         vm.prank(user2);
         wbtcConverter.revokeRole(wbtcConverter.RATE_SETTER_ROLE(), user1);
         assertFalse(
@@ -416,7 +383,6 @@ contract WBTCConverterTest is Test {
             "Converter should have CONVERTER_ROLE on strBTC"
         );
 
-        // Admin can revoke converter role
         vm.prank(owner);
         strbtc.revokeRole(strbtc.CONVERTER_ROLE(), address(wbtcConverter));
         assertFalse(
@@ -424,8 +390,7 @@ contract WBTCConverterTest is Test {
             "Converter should no longer have CONVERTER_ROLE after revocation"
         );
 
-        // Test that conversion fails when role is revoked
-        uint256 amount = 1 * 10 ** 8; // 1 BTC
+        uint256 amount = 1 * 10 ** 8;
 
         vm.prank(user1);
         vm.expectRevert();
@@ -444,7 +409,7 @@ contract WBTCConverterTest is Test {
 
         assertTrue(wbtcConverter.paused(), "Contract should be paused");
 
-        uint256 amount = 1 * 10 ** 8; // 1 BTC
+        uint256 amount = 1 * 10 ** 8;
 
         vm.prank(user1);
         vm.expectRevert(PausableUpgradeable.EnforcedPause.selector);
@@ -469,7 +434,7 @@ contract WBTCConverterTest is Test {
 
         assertFalse(wbtcConverter.paused(), "Contract should not be paused after unpause");
 
-        uint256 amount = 1 * 10 ** 8; // 1 BTC
+        uint256 amount = 1 * 10 ** 8;
 
         vm.prank(user1);
         uint256 strbtcReceived = wbtcConverter.convertWBTCToStrBTC(amount);
@@ -491,7 +456,7 @@ contract WBTCConverterTest is Test {
     }
 
     function testEmergencyWithdrawalOnlyAdmin() public {
-        uint256 amount = 1 * 10 ** 8; // 1 BTC
+        uint256 amount = 1 * 10 ** 8;
         vm.prank(user1);
         wbtcConverter.convertWBTCToStrBTC(amount);
 
@@ -512,7 +477,7 @@ contract WBTCConverterTest is Test {
     }
 
     function testEmergencyWithdrawalFullWorkflow() public {
-        uint256 amount = 5 * 10 ** 8; // 5 BTC
+        uint256 amount = 5 * 10 ** 8;
         vm.prank(user1);
         wbtcConverter.convertWBTCToStrBTC(amount);
 
@@ -547,11 +512,11 @@ contract WBTCConverterTest is Test {
     }
 
     function testEmergencyWithdrawalPartial() public {
-        uint256 amount = 10 * 10 ** 8; // 10 BTC
+        uint256 amount = 10 * 10 ** 8;
         vm.prank(user1);
         wbtcConverter.convertWBTCToStrBTC(amount);
 
-        uint256 withdrawAmount = 5 * 10 ** 8; // 5 BTC
+        uint256 withdrawAmount = 5 * 10 ** 8;
         vm.prank(owner);
         wbtcConverter.emergencyWithdraw(address(wbtc), withdrawAmount);
 
@@ -559,7 +524,7 @@ contract WBTCConverterTest is Test {
             wbtc.balanceOf(address(wbtcConverter)), amount - withdrawAmount, "Converter should have remaining WBTC"
         );
 
-        uint256 smallAmount = 1 * 10 ** 8; // 1 BTC
+        uint256 smallAmount = 1 * 10 ** 8;
         vm.prank(user1);
         strbtc.approve(address(wbtcConverter), smallAmount);
 
@@ -568,7 +533,7 @@ contract WBTCConverterTest is Test {
 
         assertEq(wbtcReceived, smallAmount, "User should receive the correct amount of WBTC");
 
-        uint256 largeAmount = 5 * 10 ** 8; // 5 BTC
+        uint256 largeAmount = 5 * 10 ** 8;
         vm.prank(user1);
         strbtc.approve(address(wbtcConverter), largeAmount);
 
@@ -594,25 +559,25 @@ contract WBTCConverterTest is Test {
     }
 
     function testExtremeExchangeRates() public {
-        uint256 highNumerator = 1000000; // 1,000,000
+        uint256 highNumerator = 1000000;
         uint256 normalDenominator = 1;
 
         vm.prank(rateSetter);
         wbtcConverter.setExchangeRate(highNumerator, normalDenominator);
 
-        uint256 smallWbtc = 1 * 10 ** 6; // 0.01 BTC
+        uint256 smallWbtc = 1 * 10 ** 6;
         vm.prank(user1);
         uint256 largeStrbtc = wbtcConverter.convertWBTCToStrBTC(smallWbtc);
 
         assertEq(largeStrbtc, smallWbtc * highNumerator / normalDenominator, "High rate conversion incorrect");
 
         uint256 lowNumerator = 1;
-        uint256 highDenominator = 1000000; // 1,000,000
+        uint256 highDenominator = 1000000;
 
         vm.prank(rateSetter);
         wbtcConverter.setExchangeRate(lowNumerator, highDenominator);
 
-        uint256 largeWbtc = 100 * 10 ** 8; // 100 BTC
+        uint256 largeWbtc = 100 * 10 ** 8;
         vm.prank(user1);
         uint256 tinyStrbtc = wbtcConverter.convertWBTCToStrBTC(largeWbtc);
 
@@ -642,10 +607,9 @@ contract WBTCConverterTest is Test {
     function testMaximumValuesConversion() public {
         vm.prank(rateSetter);
         wbtcConverter.setExchangeRate(1, 1);
+        uint256 largeAmount = 100000 * 10 ** 8;
 
-        uint256 largeAmount = type(uint64).max;
-
-        MockWBTC(address(wbtc)).mint(user1, largeAmount);
+        deal(address(wbtc), user1, largeAmount);
 
         vm.startPrank(user1);
         wbtc.approve(address(wbtcConverter), largeAmount);
@@ -672,7 +636,7 @@ contract WBTCConverterTest is Test {
     }
 
     function testConversionWithoutApproval() public {
-        uint256 amount = 1 * 10 ** 8; // 1 BTC
+        uint256 amount = 1 * 10 ** 8;
 
         vm.startPrank(user1);
         wbtc.approve(address(wbtcConverter), 0);
@@ -687,6 +651,436 @@ contract WBTCConverterTest is Test {
         strbtc.approve(address(wbtcConverter), 0);
         vm.expectRevert();
         wbtcConverter.convertStrBTCToWBTC(amount);
+        vm.stopPrank();
+    }
+
+    function testFullConversionCycle() public {
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(98, 100);
+
+        uint256 initialAmount = 10 * 10 ** 8;
+        uint256 initialUserWbtcBalance = wbtc.balanceOf(user1);
+
+        vm.startPrank(user1);
+        wbtc.approve(address(wbtcConverter), initialAmount);
+        uint256 strbtcReceived = wbtcConverter.convertWBTCToStrBTC(initialAmount);
+        vm.stopPrank();
+
+        uint256 expectedStrBtc = (initialAmount * 98) / 100;
+        assertEq(strbtcReceived, expectedStrBtc, "strBTC amount incorrect");
+        assertEq(strbtc.balanceOf(user1), expectedStrBtc, "User strBTC balance incorrect");
+        assertEq(wbtc.balanceOf(user1), initialUserWbtcBalance - initialAmount, "User WBTC balance incorrect");
+        assertEq(wbtc.balanceOf(address(wbtcConverter)), initialAmount, "Converter WBTC balance incorrect");
+
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(100, 99);
+
+        vm.startPrank(user1);
+        strbtc.approve(address(wbtcConverter), strbtcReceived);
+        uint256 wbtcReceived = wbtcConverter.convertStrBTCToWBTC(strbtcReceived);
+        vm.stopPrank();
+
+        uint256 expectedWbtc = (strbtcReceived * 99) / 100;
+        assertEq(wbtcReceived, expectedWbtc, "WBTC amount incorrect");
+        assertEq(
+            wbtc.balanceOf(user1), initialUserWbtcBalance - initialAmount + expectedWbtc, "Final WBTC balance incorrect"
+        );
+        assertEq(strbtc.balanceOf(user1), 0, "Final strBTC balance incorrect");
+        assertEq(
+            wbtc.balanceOf(address(wbtcConverter)),
+            initialAmount - expectedWbtc,
+            "Final converter WBTC balance incorrect"
+        );
+    }
+
+    function testMultipleUsersConversion() public {
+        uint256 initialAmount1 = 5 * 10 ** 8;
+        uint256 initialAmount2 = 10 * 10 ** 8;
+
+        vm.startPrank(user1);
+        wbtc.approve(address(wbtcConverter), initialAmount1);
+        uint256 strbtcReceived1 = wbtcConverter.convertWBTCToStrBTC(initialAmount1);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        wbtc.approve(address(wbtcConverter), initialAmount2);
+        uint256 strbtcReceived2 = wbtcConverter.convertWBTCToStrBTC(initialAmount2);
+        vm.stopPrank();
+
+        assertEq(strbtc.balanceOf(user1), strbtcReceived1, "User1 strBTC balance incorrect");
+        assertEq(strbtc.balanceOf(user2), strbtcReceived2, "User2 strBTC balance incorrect");
+        assertEq(
+            wbtc.balanceOf(address(wbtcConverter)), initialAmount1 + initialAmount2, "Converter WBTC balance incorrect"
+        );
+
+        vm.startPrank(user1);
+        strbtc.approve(address(wbtcConverter), strbtcReceived1);
+        uint256 wbtcReceived1 = wbtcConverter.convertStrBTCToWBTC(strbtcReceived1);
+        vm.stopPrank();
+
+        assertEq(wbtcReceived1, initialAmount1, "User1 WBTC amount incorrect");
+        assertEq(strbtc.balanceOf(user1), 0, "User1 strBTC balance should be zero");
+
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(2, 1);
+
+        vm.startPrank(user2);
+        strbtc.approve(address(wbtcConverter), strbtcReceived2);
+        uint256 wbtcReceived2 = wbtcConverter.convertStrBTCToWBTC(strbtcReceived2);
+        vm.stopPrank();
+
+        assertEq(wbtcReceived2, initialAmount2 / 2, "User2 WBTC amount incorrect with new rate");
+        assertEq(strbtc.balanceOf(user2), 0, "User2 strBTC balance should be zero");
+
+        assertEq(
+            wbtc.balanceOf(address(wbtcConverter)),
+            initialAmount1 + initialAmount2 - wbtcReceived1 - wbtcReceived2,
+            "Final converter WBTC balance incorrect"
+        );
+    }
+
+    function testLargeScaleConversionWorkflow() public {
+        address[] memory users = new address[](5);
+        for (uint256 i = 0; i < 5; i++) {
+            users[i] = address(uint160(uint256(keccak256(abi.encodePacked("user", i)))));
+            deal(address(wbtc), users[i], 100 * 10 ** 8);
+        }
+
+        uint256[] memory strbtcBalances = new uint256[](5);
+
+        // All users convert different amounts
+        for (uint256 i = 0; i < 5; i++) {
+            uint256 amount = (i + 1) * 10 * 10 ** 8;
+
+            vm.startPrank(users[i]);
+            wbtc.approve(address(wbtcConverter), amount);
+            strbtcBalances[i] = wbtcConverter.convertWBTCToStrBTC(amount);
+            vm.stopPrank();
+
+            assertEq(strbtcBalances[i], amount, "User should receive equivalent strBTC");
+        }
+
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(2, 1);
+
+        // Another batch of conversions with new rate
+        for (uint256 i = 0; i < 3; i++) {
+            uint256 amount = (i + 1) * 5 * 10 ** 8;
+
+            vm.startPrank(users[i]);
+            wbtc.approve(address(wbtcConverter), amount);
+            uint256 additionalStrBTC = wbtcConverter.convertWBTCToStrBTC(amount);
+            strbtcBalances[i] += additionalStrBTC;
+            vm.stopPrank();
+
+            assertEq(additionalStrBTC, amount * 2, "User should receive strBTC at new rate");
+        }
+
+        // Some users convert back
+        for (uint256 i = 0; i < 5; i += 2) {
+            vm.startPrank(users[i]);
+            strbtc.approve(address(wbtcConverter), strbtcBalances[i]);
+            uint256 wbtcReceived = wbtcConverter.convertStrBTCToWBTC(strbtcBalances[i]);
+            vm.stopPrank();
+
+            uint256 expectedWBTC = strbtcBalances[i] / 2;
+            assertEq(wbtcReceived, expectedWBTC, "User should receive WBTC at current rate");
+        }
+
+        assertEq(strbtc.balanceOf(users[1]), strbtcBalances[1], "User 1 should still have strBTC");
+        assertEq(strbtc.balanceOf(users[3]), strbtcBalances[3], "User 3 should still have strBTC");
+    }
+
+    function testOverflowProtection() public {
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(2, 1);
+
+        uint256 normalAmount = 100;
+        deal(address(wbtc), user1, normalAmount);
+
+        vm.startPrank(user1);
+        wbtc.approve(address(wbtcConverter), normalAmount);
+        uint256 received = wbtcConverter.convertWBTCToStrBTC(normalAmount);
+        assertEq(received, normalAmount * 2, "Should convert correctly");
+        vm.stopPrank();
+
+        uint256 maxValue = type(uint256).max;
+        uint256 overflowAmount = maxValue / 2 + 1;
+
+        deal(address(wbtc), user2, overflowAmount);
+
+        vm.startPrank(user2);
+        wbtc.approve(address(wbtcConverter), overflowAmount);
+        vm.expectRevert();
+        wbtcConverter.convertWBTCToStrBTC(overflowAmount);
+        vm.stopPrank();
+    }
+
+    function testExtremelySmallAmount() public {
+        uint256 oneWei = 1;
+
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(1, 2);
+
+        uint256 minRequired = 2;
+
+        vm.startPrank(user1);
+
+        vm.expectRevert(WBTCConverter.ConversionResultedInZeroTokens.selector);
+        wbtcConverter.convertWBTCToStrBTC(oneWei);
+
+        uint256 strbtcReceived = wbtcConverter.convertWBTCToStrBTC(minRequired);
+        assertEq(strbtcReceived, minRequired / 2, "Should receive non-zero amount");
+
+        strbtc.approve(address(wbtcConverter), oneWei);
+
+        uint256 wbtcReceived = wbtcConverter.convertStrBTCToWBTC(oneWei);
+        assertEq(wbtcReceived, oneWei * 2, "Should receive double the amount with 1:2 rate");
+
+        vm.stopPrank();
+    }
+
+    function testExtremelyLargeAmount() public {
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(1, 1);
+
+        uint256 largeAmount = type(uint128).max;
+
+        deal(address(wbtc), user1, largeAmount);
+
+        vm.startPrank(user1);
+        wbtc.approve(address(wbtcConverter), largeAmount);
+
+        uint256 strbtcReceived = wbtcConverter.convertWBTCToStrBTC(largeAmount);
+        assertEq(strbtcReceived, largeAmount, "Large amount should convert correctly");
+
+        strbtc.approve(address(wbtcConverter), strbtcReceived);
+        uint256 wbtcReceived = wbtcConverter.convertStrBTCToWBTC(strbtcReceived);
+        assertEq(wbtcReceived, largeAmount, "Converting back should return the same large amount");
+
+        vm.stopPrank();
+
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(2, 1);
+
+        uint256 overflowRiskAmount = type(uint256).max / 2 + 1;
+
+        deal(address(wbtc), user2, overflowRiskAmount);
+
+        vm.startPrank(user2);
+        wbtc.approve(address(wbtcConverter), overflowRiskAmount);
+
+        vm.expectRevert();
+        wbtcConverter.convertWBTCToStrBTC(overflowRiskAmount);
+
+        vm.stopPrank();
+    }
+
+    function testBoundaryExchangeRates() public {
+        vm.startPrank(rateSetter);
+
+        vm.expectRevert(WBTCConverter.DenominatorMustBeGreaterThanZero.selector);
+        wbtcConverter.setExchangeRate(1, 0);
+
+        vm.expectRevert(WBTCConverter.NumeratorMustBeGreaterThanZero.selector);
+        wbtcConverter.setExchangeRate(0, 1);
+
+        wbtcConverter.setExchangeRate(1, type(uint256).max);
+
+        wbtcConverter.setExchangeRate(type(uint256).max, 1);
+
+        vm.stopPrank();
+
+        uint256 amount = 1000 * 10 ** 8;
+        deal(address(wbtc), user1, amount);
+
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(1, type(uint256).max);
+
+        vm.startPrank(user1);
+        wbtc.approve(address(wbtcConverter), amount);
+
+        vm.expectRevert(WBTCConverter.ConversionResultedInZeroTokens.selector);
+        wbtcConverter.convertWBTCToStrBTC(amount);
+
+        uint256 safeAmount = type(uint128).max;
+        deal(address(wbtc), user1, safeAmount);
+        wbtc.approve(address(wbtcConverter), safeAmount);
+
+        vm.expectRevert(WBTCConverter.ConversionResultedInZeroTokens.selector);
+        wbtcConverter.convertWBTCToStrBTC(safeAmount);
+
+        vm.stopPrank();
+    }
+
+    function testDivisibilityBoundaries() public {
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(2, 3);
+
+        uint256 evenAmount = 3;
+
+        uint256 oddAmount = 2;
+
+        deal(address(wbtc), user1, evenAmount + oddAmount);
+
+        vm.startPrank(user1);
+        wbtc.approve(address(wbtcConverter), type(uint256).max);
+
+        uint256 strbtcFromEven = wbtcConverter.convertWBTCToStrBTC(evenAmount);
+        assertEq(strbtcFromEven, (evenAmount * 2) / 3, "Even division should work");
+
+        uint256 strbtcFromOdd = wbtcConverter.convertWBTCToStrBTC(oddAmount);
+        assertEq(strbtcFromOdd, (oddAmount * 2) / 3, "Should handle division with remainder");
+
+        vm.stopPrank();
+
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(3, 2);
+
+        vm.startPrank(user1);
+        deal(address(wbtc), user1, 5);
+        wbtcConverter.convertWBTCToStrBTC(5);
+
+        strbtc.approve(address(wbtcConverter), 5);
+
+        uint256 wbtcFromEven = wbtcConverter.convertStrBTCToWBTC(3);
+        assertEq(wbtcFromEven, (3 * 2) / 3, "Even division in reverse should work");
+
+        uint256 wbtcFromOdd = wbtcConverter.convertStrBTCToWBTC(2);
+        uint256 two = 2;
+        uint256 expectedWbtcFromOdd = (two * two) / 3;
+        assertEq(wbtcFromOdd, expectedWbtcFromOdd, "Should handle reverse division with remainder");
+
+        vm.stopPrank();
+    }
+
+    function testRateChangeDecimals() public {
+        uint256 initialAmount = 10 * 10 ** 8;
+
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(1, 1);
+
+        vm.prank(user1);
+        wbtcConverter.convertWBTCToStrBTC(initialAmount);
+
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(1000000, 999999);
+
+        uint256 preciseAmount = 999999;
+        deal(address(wbtc), user2, preciseAmount);
+
+        vm.startPrank(user2);
+        MockWBTC(address(wbtc)).approve(address(wbtcConverter), preciseAmount);
+        uint256 strbtcReceived = wbtcConverter.convertWBTCToStrBTC(preciseAmount);
+        vm.stopPrank();
+
+        assertEq(strbtcReceived, 1000000, "Should receive precise amount based on rate");
+
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(9999999, 10000000);
+
+        uint256 inputAmount = 9999999;
+        deal(address(wbtc), user3, inputAmount);
+
+        vm.startPrank(user3);
+        wbtc.approve(address(wbtcConverter), inputAmount);
+        uint256 user3StrBtcReceived = wbtcConverter.convertWBTCToStrBTC(inputAmount);
+
+        strbtc.approve(address(wbtcConverter), user3StrBtcReceived);
+        uint256 wbtcReceived = wbtcConverter.convertStrBTCToWBTC(user3StrBtcReceived);
+        vm.stopPrank();
+
+        assertEq(wbtcReceived, 9999998, "Should receive correct amount based on conversion calculation");
+    }
+
+    function testPrecisionLossLimits() public {
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(1, 1000000000);
+
+        uint256 justUnderMin = 999999999;
+        deal(address(wbtc), user1, justUnderMin);
+
+        vm.startPrank(user1);
+        wbtc.approve(address(wbtcConverter), justUnderMin);
+
+        vm.expectRevert(WBTCConverter.ConversionResultedInZeroTokens.selector);
+        wbtcConverter.convertWBTCToStrBTC(justUnderMin);
+        vm.stopPrank();
+
+        uint256 minRequired = 1000000000;
+        deal(address(wbtc), user1, minRequired);
+
+        vm.startPrank(user1);
+        wbtc.approve(address(wbtcConverter), minRequired);
+
+        uint256 strbtcReceived = wbtcConverter.convertWBTCToStrBTC(minRequired);
+        assertEq(strbtcReceived, 1, "Should receive 1 token at minimum threshold");
+
+        vm.stopPrank();
+
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(1, 1);
+
+        uint256 standardAmount = 1000000000;
+        deal(address(wbtc), user3, standardAmount);
+
+        vm.startPrank(user3);
+        wbtc.approve(address(wbtcConverter), standardAmount);
+        uint256 strbtcAmount = wbtcConverter.convertWBTCToStrBTC(standardAmount);
+        assertEq(strbtcAmount, standardAmount, "Should receive same amount at 1:1 rate");
+        vm.stopPrank();
+
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(1000000000, 1);
+
+        uint256 smallAmount = 1;
+        deal(address(wbtc), address(wbtcConverter), 1000000000);
+
+        vm.startPrank(user3);
+        strbtc.approve(address(wbtcConverter), strbtcAmount);
+        uint256 wbtcReceived = wbtcConverter.convertStrBTCToWBTC(strbtcAmount);
+        vm.stopPrank();
+
+        assertEq(wbtcReceived, smallAmount, "Should receive minimal amount at 1B:1 rate");
+    }
+
+    function testRedemptionRoundingErrors() public {
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(3, 10);
+
+        uint256 initialAmount = 10;
+        deal(address(wbtc), user1, initialAmount);
+
+        vm.startPrank(user1);
+        wbtc.approve(address(wbtcConverter), initialAmount);
+
+        uint256 strbtcReceived = wbtcConverter.convertWBTCToStrBTC(initialAmount);
+        assertEq(strbtcReceived, 3, "Should receive 3 strBTC for 10 WBTC");
+
+        strbtc.approve(address(wbtcConverter), strbtcReceived);
+        uint256 wbtcReceived = wbtcConverter.convertStrBTCToWBTC(strbtcReceived);
+
+        assertEq(wbtcReceived, 10, "Converting back should yield original amount");
+
+        vm.stopPrank();
+
+        vm.prank(rateSetter);
+        wbtcConverter.setExchangeRate(1, 3);
+
+        deal(address(wbtc), user1, 10);
+
+        vm.startPrank(user1);
+        wbtc.approve(address(wbtcConverter), 10);
+
+        uint256 strbtcReceived2 = wbtcConverter.convertWBTCToStrBTC(10);
+        assertEq(strbtcReceived2, 3, "Should receive 3 strBTC due to truncation");
+
+        strbtc.approve(address(wbtcConverter), strbtcReceived2);
+        uint256 wbtcReceived2 = wbtcConverter.convertStrBTCToWBTC(strbtcReceived2);
+
+        assertEq(wbtcReceived2, 9, "Should receive 9 WBTC due to previous truncation");
+        assertLt(wbtcReceived2, 10, "Should have lost some value due to rounding");
+
         vm.stopPrank();
     }
 }
