@@ -33,7 +33,7 @@ contract WBTCConverterTest is Test {
 
     bool public useFork;
     uint256 public forkId;
-    string public MAINNET_RPC_URL = vm.envString("MAINNET_RPC_URL");
+    string public MAINNET_RPC_URL;
 
     address public constant WBTC_MAINNET = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
 
@@ -43,6 +43,9 @@ contract WBTCConverterTest is Test {
         useFork = vm.envOr("USE_FORK", false);
 
         if (useFork) {
+            MAINNET_RPC_URL = vm.envOr("MAINNET_RPC_URL", string(""));
+            require(bytes(MAINNET_RPC_URL).length > 0, "MAINNET_RPC_URL must be set when USE_FORK=true");
+
             forkId = vm.createFork(MAINNET_RPC_URL);
             vm.selectFork(forkId);
 
