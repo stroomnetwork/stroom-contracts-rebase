@@ -9,8 +9,8 @@ import "./strBTC.sol";
 
 /**
  * @title WBTCConverter
- * @notice Contract for conversion between WBTC and strBTC at a dynamic rate
- * @dev Allows users to exchange WBTC for strBTC and vice versa
+ * @notice Contract for conversion between WBTC and strBTC at dynamic rates
+ * @dev Allows users to exchange WBTC for strBTC and vice versa with separate rates
  */
 contract WBTCConverter is PausableUpgradeable, AccessControlUpgradeable {
     error AmountMustBeGreaterThanZero();
@@ -18,54 +18,83 @@ contract WBTCConverter is PausableUpgradeable, AccessControlUpgradeable {
     error InsufficientWBTCBalance();
     error NumeratorMustBeGreaterThanZero();
     error DenominatorMustBeGreaterThanZero();
+    error MintingLimitExceeded();
 
     strBTC public strbtc;
     IERC20 public wbtc;
 
-    bytes32 public constant RATE_SETTER_ROLE = keccak256("RATE_SETTER_ROLE");
+    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
-    // The exchange rate is represented as the ratio X/Y
-    uint256 public exchangeRateNumerator; // X (strBTC)
-    uint256 public exchangeRateDenominator; // Y (wBTC)
+    // Incoming exchange rate (WBTC -> strBTC)
+    uint256 public incomingRateNumerator; // strBTC
+    uint256 public incomingRateDenominator; // WBTC
+
+    // Outgoing exchange rate (strBTC -> WBTC)
+    uint256 public outgoingRateNumerator; // strBTC
+    uint256 public outgoingRateDenominator; // WBTC
+
+    uint256 public totalMinted;
+    uint256 public totalBurned;
+    uint256 public mintingLimit;
 
     event WBTCConverted(address indexed user, uint256 wbtcAmount, uint256 strbtcAmount);
     event StrBTCConverted(address indexed user, uint256 strbtcAmount, uint256 wbtcAmount);
-    event ExchangeRateUpdated(uint256 numerator, uint256 denominator, address updater);
+    event IncomingRateUpdated(uint256 numerator, uint256 denominator, address updater);
+    event OutgoingRateUpdated(uint256 numerator, uint256 denominator, address updater);
+    event MintingLimitUpdated(uint256 newLimit, address updater);
 
     /**
      * @notice Initializes the WBTCConverter contract
-     * @param _wbtc wBTC Token Addresses
-     * @param _strbtc strBTC Token Addresses
+     * @param _wbtc wBTC Token Address
+     * @param _strbtc strBTC Token Address
      */
     function initialize(address _wbtc, address _strbtc) external initializer {
         PausableUpgradeable.__Pausable_init();
         AccessControlUpgradeable.__AccessControl_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(RATE_SETTER_ROLE, msg.sender);
+        _grantRole(MANAGER_ROLE, msg.sender);
 
         wbtc = IERC20(_wbtc);
         strbtc = strBTC(_strbtc);
 
-        // Initial rate 1:1
-        exchangeRateNumerator = 1;
-        exchangeRateDenominator = 1;
+        // Initial rates 1:1
+        incomingRateNumerator = 1;
+        incomingRateDenominator = 1;
+        outgoingRateNumerator = 1;
+        outgoingRateDenominator = 1;
+
+        totalMinted = 0;
+        totalBurned = 0;
+        mintingLimit = type(uint256).max;
     }
 
     /**
-     * @notice Converts wBTC to strBTC at the current rate
+     * @notice Returns the current amount of minted strBTC through this contract
+     * @return The net amount currently minted (totalMinted - totalBurned)
+     */
+    function currentlyMinted() public view returns (uint256) {
+        return totalMinted - totalBurned;
+    }
+
+    /**
+     * @notice Converts wBTC to strBTC at the incoming rate
      * @param wbtcAmount The amount of wBTC to convert
      * @return The amount of strBTC received
      */
     function convertWBTCToStrBTC(uint256 wbtcAmount) external whenNotPaused returns (uint256) {
         if (wbtcAmount == 0) revert AmountMustBeGreaterThanZero();
 
-        uint256 strbtcAmount = (wbtcAmount * exchangeRateNumerator) / exchangeRateDenominator;
+        uint256 strbtcAmount = (wbtcAmount * incomingRateNumerator) / incomingRateDenominator;
         if (strbtcAmount == 0) revert ConversionResultedInZeroTokens();
+
+        if (currentlyMinted() + strbtcAmount > mintingLimit) revert MintingLimitExceeded();
 
         wbtc.transferFrom(msg.sender, address(this), wbtcAmount);
 
         strbtc.converterMint(msg.sender, strbtcAmount);
+
+        totalMinted += strbtcAmount;
 
         emit WBTCConverted(msg.sender, wbtcAmount, strbtcAmount);
 
@@ -73,14 +102,14 @@ contract WBTCConverter is PausableUpgradeable, AccessControlUpgradeable {
     }
 
     /**
-     * @notice Converts strBTC back to wBTC at the current rate
+     * @notice Converts strBTC back to wBTC at the outgoing rate
      * @param strbtcAmount The amount of strBTC to convert
      * @return The amount of wBTC received
      */
     function convertStrBTCToWBTC(uint256 strbtcAmount) external whenNotPaused returns (uint256) {
         if (strbtcAmount == 0) revert AmountMustBeGreaterThanZero();
 
-        uint256 wbtcAmount = (strbtcAmount * exchangeRateDenominator) / exchangeRateNumerator;
+        uint256 wbtcAmount = (strbtcAmount * outgoingRateDenominator) / outgoingRateNumerator;
         if (wbtcAmount == 0) revert ConversionResultedInZeroTokens();
 
         if (wbtc.balanceOf(address(this)) < wbtcAmount) revert InsufficientWBTCBalance();
@@ -88,6 +117,8 @@ contract WBTCConverter is PausableUpgradeable, AccessControlUpgradeable {
         strbtc.transferFrom(msg.sender, address(this), strbtcAmount);
 
         strbtc.converterBurn(address(this), strbtcAmount);
+
+        totalBurned += strbtcAmount;
 
         wbtc.transfer(msg.sender, wbtcAmount);
 
@@ -97,18 +128,60 @@ contract WBTCConverter is PausableUpgradeable, AccessControlUpgradeable {
     }
 
     /**
-     * @notice Updates the exchange rate
+     * @notice Updates the incoming exchange rate (WBTC -> strBTC)
      * @param numerator The numerator of the exchange rate (number of strBTC)
      * @param denominator The denominator of the exchange rate (number of wBTC)
      */
-    function setExchangeRate(uint256 numerator, uint256 denominator) external onlyRole(RATE_SETTER_ROLE) {
+    function setIncomingRate(uint256 numerator, uint256 denominator) external onlyRole(MANAGER_ROLE) {
         if (numerator == 0) revert NumeratorMustBeGreaterThanZero();
         if (denominator == 0) revert DenominatorMustBeGreaterThanZero();
 
-        exchangeRateNumerator = numerator;
-        exchangeRateDenominator = denominator;
+        incomingRateNumerator = numerator;
+        incomingRateDenominator = denominator;
 
-        emit ExchangeRateUpdated(numerator, denominator, msg.sender);
+        emit IncomingRateUpdated(numerator, denominator, msg.sender);
+    }
+
+    /**
+     * @notice Updates the outgoing exchange rate (strBTC -> WBTC)
+     * @param numerator The numerator of the exchange rate (number of strBTC)
+     * @param denominator The denominator of the exchange rate (number of wBTC)
+     */
+    function setOutgoingRate(uint256 numerator, uint256 denominator) external onlyRole(MANAGER_ROLE) {
+        if (numerator == 0) revert NumeratorMustBeGreaterThanZero();
+        if (denominator == 0) revert DenominatorMustBeGreaterThanZero();
+
+        outgoingRateNumerator = numerator;
+        outgoingRateDenominator = denominator;
+
+        emit OutgoingRateUpdated(numerator, denominator, msg.sender);
+    }
+
+    /**
+     * @notice Updates both incoming and outgoing rates to the same value
+     * @param numerator The numerator of the exchange rate (number of strBTC)
+     * @param denominator The denominator of the exchange rate (number of wBTC)
+     */
+    function setExchangeRate(uint256 numerator, uint256 denominator) external onlyRole(MANAGER_ROLE) {
+        if (numerator == 0) revert NumeratorMustBeGreaterThanZero();
+        if (denominator == 0) revert DenominatorMustBeGreaterThanZero();
+
+        incomingRateNumerator = numerator;
+        incomingRateDenominator = denominator;
+        outgoingRateNumerator = numerator;
+        outgoingRateDenominator = denominator;
+
+        emit IncomingRateUpdated(numerator, denominator, msg.sender);
+        emit OutgoingRateUpdated(numerator, denominator, msg.sender);
+    }
+
+    /**
+     * @notice Sets the minting limit for strBTC through this converter
+     * @param newLimit The new limit for total minted - total burned
+     */
+    function setMintingLimit(uint256 newLimit) external onlyRole(MANAGER_ROLE) {
+        mintingLimit = newLimit;
+        emit MintingLimitUpdated(newLimit, msg.sender);
     }
 
     /**
