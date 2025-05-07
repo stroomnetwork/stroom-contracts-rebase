@@ -2,8 +2,8 @@
 pragma solidity ^0.8.27;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 import "blockchain-tools/src/BitcoinUtils.sol";
 import "blockchain-tools/src/BitcoinNetworkEncoder.sol";
@@ -11,7 +11,7 @@ import "blockchain-tools/src/BitcoinNetworkEncoder.sol";
 import "./lib/ValidatorMessageReceiver.sol";
 import "./lib/ValidatorRegistry.sol";
 
-contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeable {
+contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeable, AccessControlUpgradeable {
     error InsufficientBalance();
     error MinWithdrawTooLow();
     error MintAmountZero();
@@ -24,6 +24,8 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     error AmountBelowMinWithdraw();
     error InvalidBTCAddress();
     error InvalidTotalSharesOrPooledBTC();
+    error CannotMintToZeroAddress();
+    error CannotBurnFromZeroAddress();
 
     using BitcoinUtils for BitcoinNetworkEncoder.Network;
 
@@ -40,6 +42,7 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
 
     bytes public constant MESSAGE_MINT = "STROOM_MINT_INVOICE";
     bytes public constant MESSAGE_UPDATE_TOTAL_SUPPLY = "STROOM_UPDATE_TOTAL_SUPPLY";
+    bytes32 public constant CONVERTER_ROLE = keccak256("CONVERTER_ROLE");
 
     uint256 public minWithdrawAmount;
     uint256 public redeemCounter;
@@ -54,6 +57,8 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     event MintBtcEvent(address indexed _to, uint256 _value, bytes32 _btcDepositId);
     event RedeemBtcEvent(address indexed _from, string _BTCAddress, uint256 _value, uint256 _id);
     event TotalSupplyUpdatedEvent(uint256 _nonce, uint256 _totalBTCSupply, uint256 _totalShares);
+    event ConverterMint(address indexed converter, address indexed recipient, uint256 amount);
+    event ConverterBurn(address indexed converter, address indexed from, uint256 amount);
 
     function initialize(BitcoinNetworkEncoder.Network _network, ValidatorRegistry _validatorRegistry)
         public
@@ -61,11 +66,14 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     {
         ERC20Upgradeable.__ERC20_init("Stroom Bitcoin", "strBTC");
         PausableUpgradeable.__Pausable_init();
+        AccessControlUpgradeable.__AccessControl_init();
         ValidatorMessageReceiver.initialize(_validatorRegistry);
 
         minWithdrawAmount = 7_000; // 0.00007 BTC
 
         network = _network;
+
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     // ========= Override Functions ======
@@ -169,19 +177,19 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
         return abi.encodePacked(nonce, delta, address(this));
     }
 
-    // ========= Owner-only ========
+    // ========= Access Control ========
 
     /**
      * @dev Function to stop the contract (Pausable pattern).
      */
-    function pause() public onlyOwner {
+    function pause() public onlyRole(DEFAULT_ADMIN_ROLE) {
         _pause();
     }
 
     /**
      * @dev Function to resume the contract (Pausable pattern).
      */
-    function unpause() public onlyOwner {
+    function unpause() public onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
     }
 
@@ -190,9 +198,53 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
      * @param _minWithdrawAmount The new minimum withdrawal amount.
      * @notice Only the contract owner can call this function.
      */
-    function setMinWithdrawAmount(uint256 _minWithdrawAmount) public onlyOwner {
+    function setMinWithdrawAmount(uint256 _minWithdrawAmount) public onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_minWithdrawAmount < DUST_LIMIT) revert MinWithdrawTooLow();
         minWithdrawAmount = _minWithdrawAmount;
+    }
+
+    /**
+     * @notice Adds converter to the whitelist
+     * @param converter Converter address
+     */
+    function addConverter(address converter) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        grantRole(CONVERTER_ROLE, converter);
+    }
+
+    /**
+     * @notice Removes converter from the whitelist
+     * @param converter Converter address
+     */
+    function removeConverter(address converter) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(CONVERTER_ROLE, converter);
+    }
+
+    /**
+     * @notice Safe mint strBTC for wBTC converter
+     * @param recipient strBTC recipient
+     * @param amount strBTC amount to mint
+     * @dev Can only be called by authorized converters
+     */
+    function converterMint(address recipient, uint256 amount) external whenNotPaused onlyRole(CONVERTER_ROLE) {
+        if (recipient == address(0)) revert CannotMintToZeroAddress();
+
+        _mint(recipient, amount);
+
+        emit ConverterMint(msg.sender, recipient, amount);
+    }
+
+    /**
+     * @notice Safe burning strBTC for wBTC converter
+     * @param from strBTC address to burn
+     * @param amount strBTC amount to burn
+     * @dev Can only be called by authorized converters
+     */
+    function converterBurn(address from, uint256 amount) external whenNotPaused onlyRole(CONVERTER_ROLE) {
+        if (from == address(0)) revert CannotBurnFromZeroAddress();
+
+        _burn(from, amount);
+
+        emit ConverterBurn(msg.sender, from, amount);
     }
 
     // ========= Validators-only ========

@@ -7,6 +7,7 @@ import "../src/strBTC.sol";
 import "../src/wstrBTC.sol";
 import "../src/lib/UserActivator.sol";
 import "../src/lib/ValidatorRegistry.sol";
+import "../src/wBTCConverter.sol";
 import "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
 
 import {Strings as OpenZeppelinStrings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -21,15 +22,15 @@ contract DeployScript is Script {
     }
 
     function run() public {
+        address owner = vm.envAddress("OWNER_ADDRESS");
+        address wbtcAddress = vm.envAddress("WBTC_ADDRESS");
+
         vm.startBroadcast();
 
         ValidatorRegistry vr = new ValidatorRegistry();
 
         // Deploy strBTC implementation
         strBTC strBtcImplementation = new strBTC();
-        strBtcImplementation.initialize(network, vr);
-
-        address owner = vm.envAddress("OWNER_ADDRESS");
 
         // Deploy strBTC proxy
         bytes memory strBtcData = abi.encodeWithSelector(strBTC.initialize.selector, network, vr);
@@ -41,6 +42,20 @@ contract DeployScript is Script {
         wstrBTC wstrBtcContract = new wstrBTC(address(strBtcContract));
 
         UserActivator activator = new UserActivator();
+
+        // Deploy wBTCConverter implementation
+        WBTCConverter wBtcConverterImplementation = new WBTCConverter();
+
+        // Deploy wBTCConverter proxy
+        bytes memory wBtcConverterData =
+            abi.encodeWithSelector(WBTCConverter.initialize.selector, wbtcAddress, address(strBtcContract));
+
+        TransparentUpgradeableProxy wBtcConverterProxy =
+            new TransparentUpgradeableProxy(address(wBtcConverterImplementation), owner, wBtcConverterData);
+        WBTCConverter wBtcConverterContract = WBTCConverter(address(wBtcConverterProxy));
+
+        // Grant CONVERTER_ROLE to wBTCConverter in strBTC
+        strBtcContract.grantRole(strBtcContract.CONVERTER_ROLE(), address(wBtcConverterContract));
 
         vm.stopBroadcast();
 
@@ -65,6 +80,12 @@ contract DeployScript is Script {
         console.logString(
             string.concat(
                 "APP_ETH_USER_ACTIVATOR_ADDRESS=", OpenZeppelinStrings.toHexString(uint256(uint160(address(activator))))
+            )
+        );
+        console.logString(
+            string.concat(
+                "APP_ETH_WBTC_CONVERTER_ADDRESS=",
+                OpenZeppelinStrings.toHexString(uint256(uint160(address(wBtcConverterContract))))
             )
         );
     }
