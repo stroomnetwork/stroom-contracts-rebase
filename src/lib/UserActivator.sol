@@ -28,6 +28,12 @@ contract UserActivator is BTCDepositAddressDeriver, Ownable {
         emit UserAddressActivated(_userAddress);
     }
 
+    /**
+     * @dev Sets the seed for the BTC deposit address deriver.
+     * @param _btcAddr1 The first BTC taproot address.
+     * @param _btcAddr2 The second BTC taproot address.
+     * @param _network The network of the BTC addresses.
+     */
     function setSeed(string calldata _btcAddr1, string calldata _btcAddr2, BitcoinNetworkEncoder.Network _network)
         public
         override
