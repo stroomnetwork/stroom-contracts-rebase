@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
-import "./strBTC.sol";
+import "./IStrBTC.sol";
 
 /**
  * @title WBTCConverter
@@ -20,7 +20,7 @@ contract WBTCConverter is PausableUpgradeable, AccessControlUpgradeable {
     error DenominatorMustBeGreaterThanZero();
     error MintingLimitExceeded();
 
-    strBTC public strbtc;
+    IStrBTC public strbtc;
     IERC20 public wbtc;
 
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
@@ -56,7 +56,7 @@ contract WBTCConverter is PausableUpgradeable, AccessControlUpgradeable {
         _grantRole(MANAGER_ROLE, msg.sender);
 
         wbtc = IERC20(_wbtc);
-        strbtc = strBTC(_strbtc);
+        strbtc = IStrBTC(_strbtc);
 
         // Initial rates 1:1
         incomingRateNumerator = 1;
