@@ -237,7 +237,9 @@ contract STRBTCTest is Test {
         token.mintRewards(validNonce, rewardAmount, invalidSignature);
 
         assertEq(
-            token.totalSupply(), INITIAL_SUPPLY, "Total pooled BTC should remain unchanged after mintRewards with invalid signature"
+            token.totalSupply(),
+            INITIAL_SUPPLY,
+            "Total pooled BTC should remain unchanged after mintRewards with invalid signature"
         );
 
         assertEq(
@@ -343,7 +345,9 @@ contract STRBTCTest is Test {
 
         assertEq(token.balanceOf(alice), mintAmount, "Balance should remain unchanged after failed redeem");
 
-        assertEq(token.totalSupply(), mintAmount + INITIAL_SUPPLY, "Total supply should remain unchanged after failed redeem");
+        assertEq(
+            token.totalSupply(), mintAmount + INITIAL_SUPPLY, "Total supply should remain unchanged after failed redeem"
+        );
     }
 
     function testRedeemWithInvalidBTCAddressFails() public {
@@ -368,7 +372,9 @@ contract STRBTCTest is Test {
 
         assertEq(token.balanceOf(alice), mintAmount, "Balance should remain unchanged after failed redeem");
 
-        assertEq(token.totalSupply(), mintAmount + INITIAL_SUPPLY, "Total supply should remain unchanged after failed redeem");
+        assertEq(
+            token.totalSupply(), mintAmount + INITIAL_SUPPLY, "Total supply should remain unchanged after failed redeem"
+        );
     }
 
     function testRedeemReducesTotalPooledBTCAndShares() public {

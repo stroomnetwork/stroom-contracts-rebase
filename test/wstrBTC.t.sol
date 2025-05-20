@@ -203,7 +203,7 @@ contract WstrBTCTest is Test {
         uint256 expectedFinalBalance = INITIAL_SUPPLY + rewardAmount;
 
         assertEq(aliceFinalStrBTCBalance, expectedFinalBalance, "Alice's strBTC balance incorrect after unwrap");
-        
+
         uint256 aliceFinalWstrBTCBalance = wstrBTCContract.balanceOf(alice);
         assertEq(aliceFinalWstrBTCBalance, 0, "Alice's wstrBTC balance should be zero after unwrap");
     }
