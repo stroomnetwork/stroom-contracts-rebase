@@ -69,8 +69,8 @@ contract STRBTCTest is Test {
         bytes32 btcDepositId = keccak256(abi.encodePacked("txHash", uint256(1)));
 
         assertEq(token.balanceOf(alice), 0, "Alice should have no tokens initially");
-        assertEq(token.totalSupply(), INITIAL_SUPPLY, "Total supply should be 0 initially");
-        assertEq(token.totalShares(), INITIAL_SUPPLY, "Total shares should be 0 initially");
+        assertEq(token.totalSupply(), INITIAL_SUPPLY, "Total supply should be INITIAL_SUPPLY");
+        assertEq(token.totalShares(), INITIAL_SUPPLY, "Total shares should be INITIAL_SUPPLY");
 
         strBTC.MintInvoice memory invoice =
             strBTC.MintInvoice({btcDepositId: btcDepositId, recipient: alice, amount: mintAmount});
@@ -392,6 +392,8 @@ contract STRBTCTest is Test {
 
         uint256 initialTotalPooledBTC = token.totalSupply();
         uint256 initialShares = token.getShares(alice);
+        uint256 aliceBalance = token.balanceOf(alice);
+
         assertEq(initialTotalPooledBTC, mintAmount + INITIAL_SUPPLY, "Initial totalPooledBTC mismatch");
         assertGt(initialShares, 0, "Initial shares should be greater than 0");
 
@@ -400,7 +402,8 @@ contract STRBTCTest is Test {
 
         assertEq(token.totalSupply(), initialTotalPooledBTC - redeemAmount, "Total pooled BTC mismatch after redeem");
 
-        assertEq(token.getShares(alice), initialShares - redeemAmount, "Shares mismatch after redeem");
+        uint256 expectedRemainingShares = initialShares * (aliceBalance - redeemAmount) / aliceBalance;
+        assertEq(token.getShares(alice), expectedRemainingShares, "Shares mismatch after redeem");
     }
 
     function testTransferTokensSuccessfully() public {

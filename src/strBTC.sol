@@ -221,7 +221,7 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
      * @dev Only the contract owner can call this function
      */
     function setMaxRewardPercent(uint256 _maxRewardPercent) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (_maxRewardPercent > 1000) revert MaxRewardPercentTooHigh(); // Maximum 10%
+        if (_maxRewardPercent > 100) revert MaxRewardPercentTooHigh(); // Maximum 1%
         maxRewardPercent = _maxRewardPercent;
     }
 
@@ -231,7 +231,7 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
      * @dev Only the contract owner can call this function
      */
     function setMinTimeBetweenRewards(uint256 _minTimeBetweenRewards) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (_minTimeBetweenRewards < 1 hours) revert MinTimeBetweenRewardsTooLow(); // Minimum 1 hour
+        if (_minTimeBetweenRewards < 12 hours) revert MinTimeBetweenRewardsTooLow(); // Minimum 12 hour
         minTimeBetweenRewards = _minTimeBetweenRewards;
     }
 
