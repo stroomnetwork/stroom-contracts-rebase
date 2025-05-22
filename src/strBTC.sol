@@ -26,6 +26,10 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     error InvalidTotalSharesOrPooledBTC();
     error CannotMintToZeroAddress();
     error CannotBurnFromZeroAddress();
+    error RewardTooFrequent();
+    error RewardTooBig();
+    error MaxRewardPercentTooHigh();
+    error MinTimeBetweenRewardsTooLow();
 
     using BitcoinUtils for BitcoinNetworkEncoder.Network;
 
@@ -51,6 +55,10 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     uint256 private _totalPooledBTC;
     uint256 private _totalShares;
 
+    uint256 public maxRewardPercent; // in basis points, 1% = 100
+    uint256 public minTimeBetweenRewards; // in seconds
+    uint256 public lastRewardTimestamp;
+
     mapping(bytes32 => bool) public btcDepositIds;
     mapping(address => uint256) private shares;
 
@@ -74,6 +82,10 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
         network = _network;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+
+        maxRewardPercent = 100; // 1% of the total supply
+        minTimeBetweenRewards = 1 days;
+        lastRewardTimestamp = 0;
     }
 
     // ========= Override Functions ======
@@ -204,6 +216,26 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     }
 
     /**
+     * @notice Sets the maximum reward percentage
+     * @param _maxRewardPercent The new maximum reward percentage
+     * @dev Only the contract owner can call this function
+     */
+    function setMaxRewardPercent(uint256 _maxRewardPercent) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_maxRewardPercent > 100) revert MaxRewardPercentTooHigh(); // Maximum 1%
+        maxRewardPercent = _maxRewardPercent;
+    }
+
+    /**
+     * @notice Sets the minimum time between rewards
+     * @param _minTimeBetweenRewards The new minimum time between rewards
+     * @dev Only the contract owner can call this function
+     */
+    function setMinTimeBetweenRewards(uint256 _minTimeBetweenRewards) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_minTimeBetweenRewards < 12 hours) revert MinTimeBetweenRewardsTooLow(); // Minimum 12 hour
+        minTimeBetweenRewards = _minTimeBetweenRewards;
+    }
+
+    /**
      * @notice Adds converter to the whitelist
      * @param converter Converter address
      */
@@ -278,11 +310,21 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
 
         if (delta == 0) revert DeltaIsZero();
 
+        if (block.timestamp < lastRewardTimestamp + minTimeBetweenRewards) {
+            revert RewardTooFrequent();
+        }
+
+        uint256 maxDelta = (_totalPooledBTC * maxRewardPercent) / 10000;
+        if (delta > maxDelta) {
+            revert RewardTooBig();
+        }
+
         bytes32 rewardId = getTotalSupplyUpdateHash(nonce, delta);
         if (btcDepositIds[rewardId]) revert UpdateAlreadyProcessed();
         btcDepositIds[rewardId] = true;
 
         _totalPooledBTC += delta;
+        lastRewardTimestamp = block.timestamp;
 
         emit TotalSupplyUpdatedEvent(nonce, _totalPooledBTC, _totalShares);
     }

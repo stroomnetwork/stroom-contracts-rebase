@@ -21,9 +21,11 @@ contract WstrBTCTest is Test {
     address public bob;
 
     uint256 public constant BTC = 1e8; // sat
+    uint256 public constant INITIAL_SUPPLY = 1000 * BTC;
 
     function setUp() public {
         console.log("setUp");
+        vm.warp(1_729_690_309);
 
         vr = new ValidatorRegistry();
         vr.setJointPublicKey(hex"9627e95c7c43a6550b0bcc005bbd85de78a1e17285c9acae2349292e78b21c0f");
@@ -46,9 +48,9 @@ contract WstrBTCTest is Test {
 
         // Mint initial strBTC for Alice
         strBTC.MintInvoice memory invoice =
-            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: 10 * BTC});
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit1"), recipient: alice, amount: INITIAL_SUPPLY});
         bytes memory signature =
-            hex"41a3536b1cdcaed9205fd3cc79c405c6ae6be89e4acfb5f7298d2f6a17c710bef11896d61e83d936d7da8335f5d3908d8f2cf2e42e07ada17223739419c7001c";
+            hex"af8d5abb288a9f53b9d847c0bed748dbaadb73dcdb0dd53aeeaaec5620b597e9b1a285de677e5a8a2d267b2f43bc5452eca3a1da96126c1bd7bc1961aaebbc3d";
 
         strBTCContract.mint(invoice, signature);
     }
@@ -124,10 +126,10 @@ contract WstrBTCTest is Test {
     }
 
     function testWrapInsufficientBalance() public {
-        uint256 wrapAmount = 20 * BTC;
+        uint256 wrapAmount = INITIAL_SUPPLY + 1 * BTC;
 
         uint256 aliceBalance = strBTCContract.balanceOf(alice);
-        assertEq(aliceBalance, 10 * BTC, "Alice initial balance incorrect");
+        assertEq(aliceBalance, INITIAL_SUPPLY, "Alice initial balance incorrect");
 
         vm.prank(alice);
         strBTCContract.approve(address(wstrBTCContract), wrapAmount);
@@ -161,12 +163,10 @@ contract WstrBTCTest is Test {
         assertEq(aliceWstrBTCBalance, 0, "Alice's wstrBTC balance should be zero after unwrap");
 
         uint256 aliceStrBTCBalance = strBTCContract.balanceOf(alice);
-        assertEq(aliceStrBTCBalance, 10 * BTC, "Alice's strBTC balance incorrect after unwrap");
+        assertEq(aliceStrBTCBalance, INITIAL_SUPPLY, "Alice's strBTC balance incorrect after unwrap");
     }
 
     function testUnwrapAfterMintRewards() public {
-        uint256 initialAliceBalance = 10 * BTC;
-
         uint256 initialWrapAmount = 5 * BTC;
 
         vm.prank(alice);
@@ -190,12 +190,9 @@ contract WstrBTCTest is Test {
         uint256 totalSupplyAfterRewards = strBTCContract.totalSupply();
         uint256 totalSharesAfterRewards = strBTCContract.totalShares();
 
-        assertEq(totalSupplyAfterRewards, 15 * BTC, "Total supply incorrect after rewards");
+        assertEq(totalSupplyAfterRewards, INITIAL_SUPPLY + rewardAmount, "Total supply incorrect after rewards");
 
         uint256 expectedStrBTCFromUnwrap = (wstrBTCMinted * totalSupplyAfterRewards) / totalSharesAfterRewards;
-        uint256 expectedRemainingBalanceAfterRebase =
-            ((initialAliceBalance - initialWrapAmount) * totalSupplyAfterRewards) / totalSharesAfterRewards;
-        uint256 expectedFinalBalance = expectedRemainingBalanceAfterRebase + expectedStrBTCFromUnwrap;
 
         vm.prank(alice);
         uint256 strBTCUnwrapped = wstrBTCContract.unwrap(wstrBTCMinted);
@@ -203,6 +200,8 @@ contract WstrBTCTest is Test {
         assertEq(strBTCUnwrapped, expectedStrBTCFromUnwrap, "Unwrapped strBTC amount incorrect after rewards");
 
         uint256 aliceFinalStrBTCBalance = strBTCContract.balanceOf(alice);
+        uint256 expectedFinalBalance = INITIAL_SUPPLY + rewardAmount;
+
         assertEq(aliceFinalStrBTCBalance, expectedFinalBalance, "Alice's strBTC balance incorrect after unwrap");
 
         uint256 aliceFinalWstrBTCBalance = wstrBTCContract.balanceOf(alice);
@@ -425,7 +424,7 @@ contract WstrBTCTest is Test {
     function testWrapWithExcessBalance() public {
         uint256 strBTCAmount = 1 * BTC;
 
-        deal(address(strBTCContract), address(wstrBTCContract), 20 * BTC);
+        deal(address(strBTCContract), address(wstrBTCContract), 2000 * BTC);
 
         uint256 initialStrBTCBalance = strBTCContract.balanceOf(alice);
         uint256 initialWstrBTCBalance = wstrBTCContract.balanceOf(alice);
