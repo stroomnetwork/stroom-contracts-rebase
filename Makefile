@@ -88,6 +88,11 @@ script-set-seed-sepolia: export BITCOIN_NETWORK=1
 script-set-seed-sepolia: ## Sets joint public key and taproot addresses for the contracts
 	forge script script/SetSeed.s.sol:SetSeedScript --rpc-url ${SEPOLIA_RPC_URL} --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}
 
+.PHONY: script-deploy-timelock
+script-deploy-timelock: export BITCOIN_NETWORK=1 
+script-deploy-timelock: ## Deploy timelock contract
+	forge script script/DeployTimelock.s.sol:DeployTimelockScript --rpc-url ${SEPOLIA_RPC_URL} --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}
+
 .PHONY: script-clean
 script-clean: ## Clean up forge artifacts
 	forge clean
