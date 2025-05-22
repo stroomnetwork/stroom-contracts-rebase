@@ -2,15 +2,16 @@
 
 ## strBTC
 
-strBTC is an ERC20 token with a rebase mechanism that represents a share in the Stroom Lightning Network pool. Each user's balance is automatically updated during a rebase to reflect pool growth (e.g., from earned rewards).
+strBTC is a interest-bearing rebasing token wich is pegged at 1-to-1 ratio to BTC by redemption mechanism. Hence, every strBTC token can be permissionlessly converted to native BTC on Bitcoin blockchain. Each user's balance is automatically updated during a rebase to reflect pool growth (e.g., from earned rewards).
 
 The rebase mechanism is implemented through the relationship between the user's shares and the total amount of staked BTC in the pool (`totalPooledBTC`). This ensures automatic distribution of rewards among tokens without requiring explicit balance updates for each user.
 
 ### Features
 
-- **Rebase Token:** All tokens automatically accrue rewards through the rebase mechanism.
-- **Decentralized Updates:** Rebase can be triggered by validators via signed messages, ensuring security and transparency.
-- **ValidatorMessageReceiver:** Base contract validates the signatures using BIP340 ECDSA.
+- **Rebase Token:** All token holders automatically accrue rewards through the rebase mechanism.
+- **Validator Approved Updates:** Rebase can be triggered by validators via messages signed by validators, ensuring security, transparency and validity of updates.
+- **Validator Approved Mints:** Minting strBTC is triggered by user via submitting the validator signed message to the contract
+- **ValidatorMessageReceiver:** Base contract validates the BIP340 Schnorr signatures for secp256k1 elliptic curve produced by validators using threshold signing algorithm [FROST](https://www.cryptohopper.com/news/frost-flexible-round-optimized-schnorr-threshold-signatures-4820)
 
 ### Key Functions
 
@@ -23,35 +24,34 @@ The rebase mechanism is implemented through the relationship between the user's 
 
 - Adds rewards to the pool via signed messages.
 - Updates `totalSupply` without changing `totalShares`.
-- Supports the rebase mechanism, which automatically distributes new rewards among tokens.
+- Supports the rebase mechanism, which automatically distributes new rewards among token holders.
 
 #### Redeem
 
-- Converts strBTC tokens into an equivalent amount of BTC.
-- Includes validation of Bitcoin addresses.
+- Converts strBTC tokens into an equivalent amount of BTC by burning strBTC and specifying Bitcoin redemption address in the burning transactions.
+- Contract checks the validity of Bitcoin addresses to avoid locking BTC unspendable.
 
 ---
 
 ## wstrBTC
 
-**wstrBTC** is a wrapper for the rebase token **strBTC**, which locks user shares. This ensures compatibility with DeFi protocols that do not support rebase tokens.
+**wstrBTC** is an ERC-20 wrapper for the rebase token **strBTC**, which locks user shares. This ensures compatibility with DeFi protocols that do not support rebase tokens.
 
 ### Key Functions
 
 #### Wrap
 
 - Converts `strBTC` to `wstrBTC`.
-- Locks user shares to maintain balance stability.
-- Protects against balance changes due to rebase.
+- user's `wstrBTC` balance is stable, but conversion rate to `strBTC` is changing
 
 #### Unwrap
 
 - Converts `wstrBTC` back to `strBTC`.
-- Allows users to retrieve tokens with updated balances after a rebase.
+- Allows users to retrieve tokens with updated balances after a reward accrual rebases.
 
 ---
 
-## High-Level Architecture
+## Implementation Details
 
 ### strBTC
 
