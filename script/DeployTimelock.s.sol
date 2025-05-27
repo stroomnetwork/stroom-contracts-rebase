@@ -7,7 +7,7 @@ import "../src/lib/TimelockController.sol";
 
 /**
  * @title DeployTimelockScript
- * @dev Script for deploying TimelockController
+ * @dev Script for deploying StroomTimelockController
  *
  * Environment variables:
  * - ADMIN_ADDRESS: address that will receive DEFAULT_ADMIN_ROLE (optional)
@@ -45,12 +45,12 @@ contract DeployTimelockScript is Script {
         // Start deployment transaction
         vm.startBroadcast();
 
-        TimelockController timelock = new TimelockController(delay, proposers, executors, admin);
+        StroomTimelockController timelock = new StroomTimelockController(delay, proposers, executors, admin);
 
         vm.stopBroadcast();
 
         console.log("--------------------------------------------------");
-        console.log("TimelockController deployed at:", address(timelock));
+        console.log("StroomTimelockController deployed at:", address(timelock));
         console.log("--------------------------------------------------");
     }
 

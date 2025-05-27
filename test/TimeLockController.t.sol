@@ -2,13 +2,13 @@
 pragma solidity ^0.8.27;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {TimelockController} from "../src/lib/TimelockController.sol";
+import {StroomTimelockController} from "../src/lib/TimelockController.sol";
 import {strBTC} from "../src/strBTC.sol";
 import {ValidatorRegistry} from "../src/lib/ValidatorRegistry.sol";
 import {BitcoinNetworkEncoder} from "blockchain-tools/src/BitcoinNetworkEncoder.sol";
 
 contract TimeLockControllerTest is Test {
-    TimelockController public timelock;
+    StroomTimelockController public timelock;
     strBTC public token;
     ValidatorRegistry public validatorRegistry;
     address public admin;
@@ -39,7 +39,7 @@ contract TimeLockControllerTest is Test {
         executors[0] = executor;
         executors[1] = multisig;
 
-        timelock = new TimelockController(TIMELOCK_DELAY, proposers, executors, admin);
+        timelock = new StroomTimelockController(TIMELOCK_DELAY, proposers, executors, admin);
 
         validatorRegistry = new ValidatorRegistry();
 
@@ -257,7 +257,7 @@ contract TimeLockControllerTest is Test {
         address[] memory executors = new address[](1);
         executors[0] = executor;
 
-        TimelockController newTimelock = new TimelockController(TIMELOCK_DELAY, proposers, executors, admin);
+        StroomTimelockController newTimelock = new StroomTimelockController(TIMELOCK_DELAY, proposers, executors, admin);
 
         assertTrue(address(newTimelock) != address(0));
         assertTrue(newTimelock.hasRole(PROPOSER_ROLE, proposer));
@@ -271,7 +271,7 @@ contract TimeLockControllerTest is Test {
         address[] memory executors = new address[](1);
         executors[0] = executor;
 
-        TimelockController newTimelock = new TimelockController(TIMELOCK_DELAY, proposers, executors, admin);
+        StroomTimelockController newTimelock = new StroomTimelockController(TIMELOCK_DELAY, proposers, executors, admin);
 
         bytes memory data = abi.encodeWithSelector(token.grantRole.selector, DEFAULT_ADMIN_ROLE, address(newTimelock));
 
