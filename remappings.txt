@@ -10,3 +10,5 @@ foundry-devops/=lib/blockchain-tools/lib/foundry-devops/
 halmos-cheatcodes/=lib/openzeppelin-contracts-upgradeable/lib/halmos-cheatcodes/src/
 openzeppelin-contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/
 openzeppelin-contracts/=lib/openzeppelin-contracts-upgradeable/lib/openzeppelin-contracts/
+safe-contracts/=lib/safe-contracts/
+@safe-global/safe-contracts/=lib/safe-contracts/
