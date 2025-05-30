@@ -27,6 +27,7 @@ contract TimelockUpgradeTest is Test {
     address public proposer;
     address public executor;
     address public user;
+    address public pauser;
 
     uint256 public constant TIMELOCK_DELAY = 2 days;
 
@@ -39,7 +40,7 @@ contract TimelockUpgradeTest is Test {
         proposer = address(0x2);
         executor = address(0x3);
         user = address(0x4);
-
+        pauser = address(0x5);
         address[] memory proposers = new address[](1);
         proposers[0] = proposer;
 
@@ -51,8 +52,13 @@ contract TimelockUpgradeTest is Test {
         validatorRegistry = new ValidatorRegistry();
         tokenImplementation = new strBTC();
 
-        bytes memory initData =
-            abi.encodeWithSelector(strBTC.initialize.selector, BitcoinNetworkEncoder.Network.Mainnet, validatorRegistry);
+        bytes memory initData = abi.encodeWithSelector(
+            strBTC.initialize.selector,
+            BitcoinNetworkEncoder.Network.Mainnet,
+            validatorRegistry,
+            address(timelock),
+            pauser
+        );
         proxy = new TransparentUpgradeableProxy(address(tokenImplementation), address(timelock), initData); // set timelock as admin
 
         token = strBTC(address(proxy));

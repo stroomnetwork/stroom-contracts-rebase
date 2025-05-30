@@ -22,7 +22,9 @@ contract DeployScript is Script {
     }
 
     function run() public {
-        address owner = vm.envAddress("OWNER_ADDRESS");
+        address admin = vm.envAddress("ADMIN_ADDRESS"); // timelock address
+        address pauser = vm.envAddress("PAUSER_ADDRESS");
+        address manager = vm.envAddress("MANAGER_ADDRESS");
         address wbtcAddress = vm.envAddress("WBTC_ADDRESS");
 
         vm.startBroadcast();
@@ -33,9 +35,9 @@ contract DeployScript is Script {
         strBTC strBtcImplementation = new strBTC();
 
         // Deploy strBTC proxy
-        bytes memory strBtcData = abi.encodeWithSelector(strBTC.initialize.selector, network, vr);
+        bytes memory strBtcData = abi.encodeWithSelector(strBTC.initialize.selector, network, vr, admin, pauser);
         TransparentUpgradeableProxy strBtcProxy =
-            new TransparentUpgradeableProxy(address(strBtcImplementation), owner, strBtcData);
+            new TransparentUpgradeableProxy(address(strBtcImplementation), admin, strBtcData);
         strBTC strBtcContract = strBTC(address(strBtcProxy));
 
         // Deploy wstrBTC
@@ -47,11 +49,12 @@ contract DeployScript is Script {
         WBTCConverter wBtcConverterImplementation = new WBTCConverter();
 
         // Deploy wBTCConverter proxy
-        bytes memory wBtcConverterData =
-            abi.encodeWithSelector(WBTCConverter.initialize.selector, wbtcAddress, address(strBtcContract));
+        bytes memory wBtcConverterData = abi.encodeWithSelector(
+            WBTCConverter.initialize.selector, wbtcAddress, address(strBtcContract), admin, manager, pauser
+        );
 
         TransparentUpgradeableProxy wBtcConverterProxy =
-            new TransparentUpgradeableProxy(address(wBtcConverterImplementation), owner, wBtcConverterData);
+            new TransparentUpgradeableProxy(address(wBtcConverterImplementation), admin, wBtcConverterData);
         WBTCConverter wBtcConverterContract = WBTCConverter(address(wBtcConverterProxy));
 
         // Grant CONVERTER_ROLE to wBTCConverter in strBTC

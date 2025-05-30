@@ -5,23 +5,20 @@ import {Test, console2} from "forge-std/Test.sol";
 import {strBTC} from "../src/strBTC.sol";
 import {StroomTimelockController} from "../src/lib/TimelockController.sol";
 import {ValidatorRegistry} from "../src/lib/ValidatorRegistry.sol";
-import {SafeTestUtils} from "./utils/SafeTestUtils.sol";
 import {BitcoinNetworkEncoder} from "blockchain-tools/src/BitcoinNetworkEncoder.sol";
-import "@safe-global/safe-contracts/contracts/Safe.sol";
-import "@safe-global/safe-contracts/contracts/proxies/SafeProxyFactory.sol";
-import "@safe-global/safe-contracts/contracts/handler/CompatibilityFallbackHandler.sol";
+import {SafeTestUtils} from "./utils/SafeTestUtils.sol";
+import {Safe} from "@safe-global/safe-contracts/contracts/Safe.sol";
 
 contract MultisigTest is Test {
     strBTC public token;
     StroomTimelockController public timelock;
     ValidatorRegistry public validatorRegistry;
     Safe public safe;
-    SafeProxyFactory public safeFactory;
-    CompatibilityFallbackHandler public handler;
     SafeTestUtils public safeUtils;
 
     address public admin;
     address public converter;
+    address public pauser;
     uint256 public constant TIMELOCK_DELAY = 2 days;
     uint256 public constant SAFE_THRESHOLD = 2;
 
@@ -37,6 +34,8 @@ contract MultisigTest is Test {
     function setUp() public {
         admin = address(0x9999);
         converter = address(0x8888);
+        pauser = address(0x7777);
+
         uint256[] memory keys = new uint256[](3);
         keys[0] = 0x1;
         keys[1] = 0x2;
@@ -62,10 +61,7 @@ contract MultisigTest is Test {
         // Deploy strBTC
         validatorRegistry = new ValidatorRegistry();
         token = new strBTC();
-        token.initialize(BitcoinNetworkEncoder.Network.Mainnet, validatorRegistry);
-
-        token.grantRole(DEFAULT_ADMIN_ROLE, address(timelock));
-        token.revokeRole(DEFAULT_ADMIN_ROLE, address(this));
+        token.initialize(BitcoinNetworkEncoder.Network.Mainnet, validatorRegistry, address(timelock), pauser);
     }
 
     function testProposers() public view {

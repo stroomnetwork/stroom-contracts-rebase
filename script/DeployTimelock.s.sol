@@ -18,7 +18,7 @@ import "../src/lib/TimelockController.sol";
 contract DeployTimelockScript is Script {
     function run() external {
         // Get addresses from environment
-        address admin = vm.envOr("ADMIN_ADDRESS", address(0));
+        address admin = vm.envAddress("TIMELOCK_ADMIN_ADDRESS"); // multisig address
         string memory proposersStr = vm.envString("PROPOSER_ADDRESSES");
         string memory executorsStr = vm.envString("EXECUTOR_ADDRESSES");
 

@@ -11,16 +11,17 @@ contract ValidatorRegistryTest is Test {
     strBTC public token;
 
     address public admin;
+    address public pauser;
     address public alice;
 
     function setUp() public {
         vr = new ValidatorRegistry();
         admin = msg.sender;
-
+        pauser = makeAddr("Pauser");
         // Deploy strBTC
         strBTC strBtcImplementation = new strBTC();
         bytes memory strBtcData =
-            abi.encodeWithSelector(strBTC.initialize.selector, BitcoinNetworkEncoder.Network.Testnet, vr);
+            abi.encodeWithSelector(strBTC.initialize.selector, BitcoinNetworkEncoder.Network.Testnet, vr, admin, pauser);
         TransparentUpgradeableProxy strBtcProxy =
             new TransparentUpgradeableProxy(address(strBtcImplementation), admin, strBtcData);
 

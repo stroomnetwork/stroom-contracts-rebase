@@ -28,6 +28,7 @@ contract WBTCConverterTest is Test {
     address public user2;
     address public user3;
     address public manager;
+    address public pauser;
 
     uint256 public constant INITIAL_WBTC_SUPPLY = 1000 * 10 ** 8; // 1000 WBTC
 
@@ -53,6 +54,7 @@ contract WBTCConverterTest is Test {
         }
 
         owner = address(this);
+        pauser = makeAddr("Pauser");
         user1 = makeAddr("user1");
         user2 = makeAddr("user2");
         user3 = makeAddr("user3");
@@ -79,7 +81,8 @@ contract WBTCConverterTest is Test {
 
         strBTC strBtcImplementation = new strBTC();
 
-        bytes memory strBtcData = abi.encodeWithSelector(strBTC.initialize.selector, network, validatorRegistry);
+        bytes memory strBtcData =
+            abi.encodeWithSelector(strBTC.initialize.selector, network, validatorRegistry, owner, pauser);
 
         TransparentUpgradeableProxy strBtcProxy =
             new TransparentUpgradeableProxy(address(strBtcImplementation), owner, strBtcData);
@@ -87,16 +90,15 @@ contract WBTCConverterTest is Test {
 
         WBTCConverter wbtcConverterImplementation = new WBTCConverter();
 
-        bytes memory wbtcConverterData =
-            abi.encodeWithSelector(WBTCConverter.initialize.selector, address(wbtc), address(strbtc));
+        bytes memory wbtcConverterData = abi.encodeWithSelector(
+            WBTCConverter.initialize.selector, address(wbtc), address(strbtc), owner, manager, pauser
+        );
 
         TransparentUpgradeableProxy wbtcConverterProxy =
             new TransparentUpgradeableProxy(address(wbtcConverterImplementation), owner, wbtcConverterData);
         wbtcConverter = WBTCConverter(address(wbtcConverterProxy));
 
         strbtc.grantRole(strbtc.CONVERTER_ROLE(), address(wbtcConverter));
-
-        wbtcConverter.grantRole(wbtcConverter.MANAGER_ROLE(), manager);
 
         vm.prank(user1);
         wbtc.approve(address(wbtcConverter), type(uint256).max);
@@ -288,7 +290,7 @@ contract WBTCConverterTest is Test {
         uint256 newDenominator = 100;
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(newNumerator, newDenominator);
+        wbtcConverter.setCommonExchangeRate(newNumerator, newDenominator);
 
         assertEq(wbtcConverter.incomingRateNumerator(), newNumerator, "Incoming numerator not updated correctly");
         assertEq(wbtcConverter.incomingRateDenominator(), newDenominator, "Incoming denominator not updated correctly");
@@ -299,7 +301,7 @@ contract WBTCConverterTest is Test {
         newDenominator = 100;
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(newNumerator, newDenominator);
+        wbtcConverter.setCommonExchangeRate(newNumerator, newDenominator);
 
         assertEq(wbtcConverter.incomingRateNumerator(), newNumerator, "Incoming numerator not updated correctly");
         assertEq(wbtcConverter.incomingRateDenominator(), newDenominator, "Incoming denominator not updated correctly");
@@ -387,14 +389,14 @@ contract WBTCConverterTest is Test {
 
         vm.prank(manager);
         vm.expectRevert();
-        wbtcConverter.setExchangeRate(newNumerator, newDenominator);
+        wbtcConverter.setCommonExchangeRate(newNumerator, newDenominator);
 
         newNumerator = 100;
         newDenominator = 0;
 
         vm.prank(manager);
         vm.expectRevert();
-        wbtcConverter.setExchangeRate(newNumerator, newDenominator);
+        wbtcConverter.setCommonExchangeRate(newNumerator, newDenominator);
 
         assertEq(wbtcConverter.incomingRateNumerator(), 1, "Numerator should not change");
         assertEq(wbtcConverter.incomingRateDenominator(), 1, "Denominator should not change");
@@ -408,7 +410,7 @@ contract WBTCConverterTest is Test {
 
         vm.prank(user1);
         vm.expectRevert();
-        wbtcConverter.setExchangeRate(newNumerator, newDenominator);
+        wbtcConverter.setCommonExchangeRate(newNumerator, newDenominator);
 
         assertEq(wbtcConverter.incomingRateNumerator(), 1, "Numerator should not change");
         assertEq(wbtcConverter.incomingRateDenominator(), 1, "Denominator should not change");
@@ -500,7 +502,7 @@ contract WBTCConverterTest is Test {
         vm.expectRevert();
         wbtcConverter.pause();
 
-        vm.prank(owner);
+        vm.prank(pauser);
         wbtcConverter.pause();
 
         assertTrue(wbtcConverter.paused(), "Contract should be paused");
@@ -517,7 +519,7 @@ contract WBTCConverterTest is Test {
     }
 
     function testUnpauseContract() public {
-        vm.prank(owner);
+        vm.prank(pauser);
         wbtcConverter.pause();
         assertTrue(wbtcConverter.paused(), "Contract should be paused");
 
@@ -525,7 +527,7 @@ contract WBTCConverterTest is Test {
         vm.expectRevert();
         wbtcConverter.unpause();
 
-        vm.prank(owner);
+        vm.prank(pauser);
         wbtcConverter.unpause();
 
         assertFalse(wbtcConverter.paused(), "Contract should not be paused after unpause");
@@ -540,11 +542,9 @@ contract WBTCConverterTest is Test {
 
     function testGrantPauserRole() public {
         vm.prank(owner);
-        wbtcConverter.grantRole(wbtcConverter.DEFAULT_ADMIN_ROLE(), user2);
+        wbtcConverter.grantRole(wbtcConverter.PAUSER_ROLE(), user2);
 
-        assertTrue(
-            wbtcConverter.hasRole(wbtcConverter.DEFAULT_ADMIN_ROLE(), user2), "User should have DEFAULT_ADMIN_ROLE"
-        );
+        assertTrue(wbtcConverter.hasRole(wbtcConverter.PAUSER_ROLE(), user2), "User should have PAUSER_ROLE");
 
         vm.prank(user2);
         wbtcConverter.pause();
@@ -659,7 +659,7 @@ contract WBTCConverterTest is Test {
         uint256 normalDenominator = 1;
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(highNumerator, normalDenominator);
+        wbtcConverter.setCommonExchangeRate(highNumerator, normalDenominator);
 
         uint256 smallWbtc = 1 * 10 ** 6;
         vm.prank(user1);
@@ -671,7 +671,7 @@ contract WBTCConverterTest is Test {
         uint256 highDenominator = 1000000;
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(lowNumerator, highDenominator);
+        wbtcConverter.setCommonExchangeRate(lowNumerator, highDenominator);
 
         uint256 largeWbtc = 100 * 10 ** 8;
         vm.prank(user1);
@@ -685,7 +685,7 @@ contract WBTCConverterTest is Test {
         uint256 denominator = 1000;
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(numerator, denominator);
+        wbtcConverter.setCommonExchangeRate(numerator, denominator);
 
         uint256 smallAmount = denominator - 1;
 
@@ -702,7 +702,7 @@ contract WBTCConverterTest is Test {
 
     function testMaximumValuesConversion() public {
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(1, 1);
+        wbtcConverter.setCommonExchangeRate(1, 1);
         uint256 largeAmount = 100000 * 10 ** 8;
 
         deal(address(wbtc), user1, largeAmount);
@@ -724,7 +724,7 @@ contract WBTCConverterTest is Test {
 
         vm.prank(user1);
         vm.expectRevert();
-        wbtcConverter.setExchangeRate(2, 1);
+        wbtcConverter.setCommonExchangeRate(2, 1);
 
         vm.prank(user1);
         vm.expectRevert();
@@ -752,7 +752,7 @@ contract WBTCConverterTest is Test {
 
     function testFullConversionCycle() public {
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(98, 100);
+        wbtcConverter.setCommonExchangeRate(98, 100);
 
         uint256 initialAmount = 10 * 10 ** 8;
         uint256 initialUserWbtcBalance = wbtc.balanceOf(user1);
@@ -769,7 +769,7 @@ contract WBTCConverterTest is Test {
         assertEq(wbtc.balanceOf(address(wbtcConverter)), initialAmount, "Converter WBTC balance incorrect");
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(100, 99);
+        wbtcConverter.setCommonExchangeRate(100, 99);
 
         vm.startPrank(user1);
         strbtc.approve(address(wbtcConverter), strbtcReceived);
@@ -818,7 +818,7 @@ contract WBTCConverterTest is Test {
         assertEq(strbtc.balanceOf(user1), 0, "User1 strBTC balance should be zero");
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(2, 1);
+        wbtcConverter.setCommonExchangeRate(2, 1);
 
         vm.startPrank(user2);
         strbtc.approve(address(wbtcConverter), strbtcReceived2);
@@ -857,7 +857,7 @@ contract WBTCConverterTest is Test {
         }
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(2, 1);
+        wbtcConverter.setCommonExchangeRate(2, 1);
 
         // Another batch of conversions with new rate
         for (uint256 i = 0; i < 3; i++) {
@@ -889,7 +889,7 @@ contract WBTCConverterTest is Test {
 
     function testOverflowProtection() public {
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(2, 1);
+        wbtcConverter.setCommonExchangeRate(2, 1);
 
         uint256 normalAmount = 100;
         deal(address(wbtc), user1, normalAmount);
@@ -916,7 +916,7 @@ contract WBTCConverterTest is Test {
         uint256 oneWei = 1;
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(1, 2);
+        wbtcConverter.setCommonExchangeRate(1, 2);
 
         uint256 minRequired = 2;
 
@@ -938,7 +938,7 @@ contract WBTCConverterTest is Test {
 
     function testExtremelyLargeAmount() public {
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(1, 1);
+        wbtcConverter.setCommonExchangeRate(1, 1);
 
         uint256 largeAmount = type(uint128).max;
 
@@ -957,7 +957,7 @@ contract WBTCConverterTest is Test {
         vm.stopPrank();
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(2, 1);
+        wbtcConverter.setCommonExchangeRate(2, 1);
 
         uint256 overflowRiskAmount = type(uint256).max / 2 + 1;
 
@@ -976,14 +976,14 @@ contract WBTCConverterTest is Test {
         vm.startPrank(manager);
 
         vm.expectRevert(WBTCConverter.DenominatorMustBeGreaterThanZero.selector);
-        wbtcConverter.setExchangeRate(1, 0);
+        wbtcConverter.setCommonExchangeRate(1, 0);
 
         vm.expectRevert(WBTCConverter.NumeratorMustBeGreaterThanZero.selector);
-        wbtcConverter.setExchangeRate(0, 1);
+        wbtcConverter.setCommonExchangeRate(0, 1);
 
-        wbtcConverter.setExchangeRate(1, type(uint256).max);
+        wbtcConverter.setCommonExchangeRate(1, type(uint256).max);
 
-        wbtcConverter.setExchangeRate(type(uint256).max, 1);
+        wbtcConverter.setCommonExchangeRate(type(uint256).max, 1);
 
         vm.stopPrank();
 
@@ -991,7 +991,7 @@ contract WBTCConverterTest is Test {
         deal(address(wbtc), user1, amount);
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(1, type(uint256).max);
+        wbtcConverter.setCommonExchangeRate(1, type(uint256).max);
 
         vm.startPrank(user1);
         wbtc.approve(address(wbtcConverter), amount);
@@ -1011,7 +1011,7 @@ contract WBTCConverterTest is Test {
 
     function testDivisibilityBoundaries() public {
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(2, 3);
+        wbtcConverter.setCommonExchangeRate(2, 3);
 
         uint256 evenAmount = 3;
 
@@ -1031,7 +1031,7 @@ contract WBTCConverterTest is Test {
         vm.stopPrank();
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(3, 2);
+        wbtcConverter.setCommonExchangeRate(3, 2);
 
         vm.startPrank(user1);
         deal(address(wbtc), user1, 5);
@@ -1054,13 +1054,13 @@ contract WBTCConverterTest is Test {
         uint256 initialAmount = 10 * 10 ** 8;
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(1, 1);
+        wbtcConverter.setCommonExchangeRate(1, 1);
 
         vm.prank(user1);
         wbtcConverter.convertWBTCToStrBTC(initialAmount);
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(1000000, 999999);
+        wbtcConverter.setCommonExchangeRate(1000000, 999999);
 
         uint256 preciseAmount = 999999;
         deal(address(wbtc), user2, preciseAmount);
@@ -1073,7 +1073,7 @@ contract WBTCConverterTest is Test {
         assertEq(strbtcReceived, 1000000, "Should receive precise amount based on rate");
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(9999999, 10000000);
+        wbtcConverter.setCommonExchangeRate(9999999, 10000000);
 
         uint256 inputAmount = 9999999;
         deal(address(wbtc), user3, inputAmount);
@@ -1091,7 +1091,7 @@ contract WBTCConverterTest is Test {
 
     function testPrecisionLossLimits() public {
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(1, 1000000000);
+        wbtcConverter.setCommonExchangeRate(1, 1000000000);
 
         uint256 justUnderMin = 999999999;
         deal(address(wbtc), user1, justUnderMin);
@@ -1115,7 +1115,7 @@ contract WBTCConverterTest is Test {
         vm.stopPrank();
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(1, 1);
+        wbtcConverter.setCommonExchangeRate(1, 1);
 
         uint256 standardAmount = 1000000000;
         deal(address(wbtc), user3, standardAmount);
@@ -1127,7 +1127,7 @@ contract WBTCConverterTest is Test {
         vm.stopPrank();
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(1000000000, 1);
+        wbtcConverter.setCommonExchangeRate(1000000000, 1);
 
         uint256 smallAmount = 1;
         deal(address(wbtc), address(wbtcConverter), 1000000000);
@@ -1142,7 +1142,7 @@ contract WBTCConverterTest is Test {
 
     function testRedemptionRoundingErrors() public {
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(3, 10);
+        wbtcConverter.setCommonExchangeRate(3, 10);
 
         uint256 initialAmount = 10;
         deal(address(wbtc), user1, initialAmount);
@@ -1161,7 +1161,7 @@ contract WBTCConverterTest is Test {
         vm.stopPrank();
 
         vm.prank(manager);
-        wbtcConverter.setExchangeRate(1, 3);
+        wbtcConverter.setCommonExchangeRate(1, 3);
 
         deal(address(wbtc), user1, 10);
 
