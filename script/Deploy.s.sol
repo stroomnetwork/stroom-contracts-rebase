@@ -15,6 +15,10 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 
 contract DeployScript is Script {
     BitcoinNetworkEncoder.Network private network;
+    address admin = vm.envAddress("ADMIN_ADDRESS"); // timelock address
+    address pauser = vm.envAddress("PAUSER_ADDRESS");
+    address manager = vm.envAddress("MANAGER_ADDRESS");
+    address wbtcAddress = vm.envAddress("WBTC_ADDRESS");
 
     function setUp() public {
         network = BitcoinNetworkEncoder.Network(vm.envUint("BITCOIN_NETWORK"));
@@ -22,11 +26,6 @@ contract DeployScript is Script {
     }
 
     function run() public {
-        address admin = vm.envAddress("ADMIN_ADDRESS"); // timelock address
-        address pauser = vm.envAddress("PAUSER_ADDRESS");
-        address manager = vm.envAddress("MANAGER_ADDRESS");
-        address wbtcAddress = vm.envAddress("WBTC_ADDRESS");
-
         vm.startBroadcast();
 
         ValidatorRegistry vr = new ValidatorRegistry();
