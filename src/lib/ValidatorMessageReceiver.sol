@@ -8,15 +8,14 @@ import "bip340-solidity/src/Bip340Ecrec.sol";
 
 import "./ValidatorRegistry.sol";
 
-contract ValidatorMessageReceiver is OwnableUpgradeable, Bip340Ecrec {
+contract ValidatorMessageReceiver {
     // Add a state variable for the ValidatorRegistry contract
     ValidatorRegistry public validatorRegistry;
 
     error InvalidValidatorSignature();
 
     // Update the constructor to accept the ValidatorRegistry contract
-    function initialize(ValidatorRegistry _validatorRegistry) public onlyInitializing {
-        OwnableUpgradeable.__Ownable_init(msg.sender);
+    function initialize(ValidatorRegistry _validatorRegistry) public {
         validatorRegistry = _validatorRegistry;
     }
 
