@@ -16,6 +16,7 @@ contract WstrBTCTest is Test {
     ValidatorRegistry public vr;
 
     address public admin;
+    address public pauser;
 
     address public alice;
     address public bob;
@@ -31,11 +32,12 @@ contract WstrBTCTest is Test {
         vr.setJointPublicKey(hex"9627e95c7c43a6550b0bcc005bbd85de78a1e17285c9acae2349292e78b21c0f");
 
         admin = msg.sender;
+        pauser = makeAddr("Pauser");
 
         // Deploy strBTC implementation
         strBTC strBTCImplementation = new strBTC();
         bytes memory strBTCData =
-            abi.encodeWithSelector(strBTC.initialize.selector, BitcoinNetworkEncoder.Network.Mainnet, vr);
+            abi.encodeWithSelector(strBTC.initialize.selector, BitcoinNetworkEncoder.Network.Mainnet, vr, admin, pauser);
         TransparentUpgradeableProxy strBTCProxy =
             new TransparentUpgradeableProxy(address(strBTCImplementation), admin, strBTCData);
         strBTCContract = strBTC(address(strBTCProxy));

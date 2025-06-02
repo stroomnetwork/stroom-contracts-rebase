@@ -47,6 +47,7 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     bytes public constant MESSAGE_MINT = "STROOM_MINT_INVOICE";
     bytes public constant MESSAGE_UPDATE_TOTAL_SUPPLY = "STROOM_UPDATE_TOTAL_SUPPLY";
     bytes32 public constant CONVERTER_ROLE = keccak256("CONVERTER_ROLE");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     uint256 public minWithdrawAmount;
     uint256 public redeemCounter;
@@ -68,10 +69,12 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     event ConverterMint(address indexed converter, address indexed recipient, uint256 amount);
     event ConverterBurn(address indexed converter, address indexed from, uint256 amount);
 
-    function initialize(BitcoinNetworkEncoder.Network _network, ValidatorRegistry _validatorRegistry)
-        public
-        initializer
-    {
+    function initialize(
+        BitcoinNetworkEncoder.Network _network,
+        ValidatorRegistry _validatorRegistry,
+        address _admin,
+        address _pauser
+    ) public initializer {
         ERC20Upgradeable.__ERC20_init("Stroom Bitcoin", "strBTC");
         PausableUpgradeable.__Pausable_init();
         AccessControlUpgradeable.__AccessControl_init();
@@ -81,7 +84,8 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
 
         network = _network;
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin);
+        _grantRole(PAUSER_ROLE, _pauser);
 
         maxRewardPercent = 100; // 1% of the total supply
         minTimeBetweenRewards = 1 days;
@@ -194,14 +198,14 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     /**
      * @dev Function to stop the contract (Pausable pattern).
      */
-    function pause() public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function pause() public onlyRole(PAUSER_ROLE) {
         _pause();
     }
 
     /**
      * @dev Function to resume the contract (Pausable pattern).
      */
-    function unpause() public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function unpause() public onlyRole(PAUSER_ROLE) {
         _unpause();
     }
 
@@ -249,6 +253,22 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
      */
     function removeConverter(address converter) external onlyRole(DEFAULT_ADMIN_ROLE) {
         revokeRole(CONVERTER_ROLE, converter);
+    }
+
+    /**
+     * @notice Adds pauser to the whitelist
+     * @param pauser Pauser address
+     */
+    function addPauser(address pauser) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        grantRole(PAUSER_ROLE, pauser);
+    }
+
+    /**
+     * @notice Removes pauser from the whitelist
+     * @param pauser Pauser address
+     */
+    function removePauser(address pauser) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(PAUSER_ROLE, pauser);
     }
 
     /**

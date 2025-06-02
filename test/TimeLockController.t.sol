@@ -12,6 +12,7 @@ contract TimeLockControllerTest is Test {
     strBTC public token;
     ValidatorRegistry public validatorRegistry;
     address public admin;
+    address public pauser;
     address public proposer;
     address public executor;
     address public multisig;
@@ -30,6 +31,7 @@ contract TimeLockControllerTest is Test {
         executor = address(0x3);
         multisig = address(0x4);
         converter = address(0x5);
+        pauser = address(0x6);
 
         address[] memory proposers = new address[](2);
         proposers[0] = proposer;
@@ -44,16 +46,7 @@ contract TimeLockControllerTest is Test {
         validatorRegistry = new ValidatorRegistry();
 
         token = new strBTC();
-        token.initialize(BitcoinNetworkEncoder.Network.Mainnet, validatorRegistry);
-
-        token.grantRole(DEFAULT_ADMIN_ROLE, admin);
-
-        token.revokeRole(DEFAULT_ADMIN_ROLE, address(this));
-
-        // Transfer admin role to timelock
-        vm.startPrank(admin);
-        token.grantRole(DEFAULT_ADMIN_ROLE, address(timelock));
-        vm.stopPrank();
+        token.initialize(BitcoinNetworkEncoder.Network.Mainnet, validatorRegistry, address(timelock), pauser);
     }
 
     function testTimelockControllerInitialization() public view {
@@ -84,10 +77,7 @@ contract TimeLockControllerTest is Test {
         assertEq(timelock.getMinDelay(), TIMELOCK_DELAY);
     }
 
-    function testTimelockIsOnlyDefaultAdmin() public {
-        vm.prank(admin);
-        token.revokeRole(DEFAULT_ADMIN_ROLE, admin);
-
+    function testTimelockIsOnlyDefaultAdmin() public view {
         assertTrue(token.hasRole(DEFAULT_ADMIN_ROLE, address(timelock)));
         assertFalse(token.hasRole(DEFAULT_ADMIN_ROLE, admin));
         assertFalse(token.hasRole(DEFAULT_ADMIN_ROLE, proposer));
@@ -240,14 +230,6 @@ contract TimeLockControllerTest is Test {
         _scheduleAndExecuteOperation(data);
 
         assertEq(token.minWithdrawAmount(), newMinWithdraw);
-    }
-
-    function testEmergencyPauseThroughTimelock() public {
-        bytes memory data = abi.encodeWithSelector(token.pause.selector);
-
-        _scheduleAndExecuteOperation(data);
-
-        assertTrue(token.paused());
     }
 
     function testDeployNewTimelockController() public {

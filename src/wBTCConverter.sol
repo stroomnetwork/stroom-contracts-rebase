@@ -24,6 +24,7 @@ contract WBTCConverter is PausableUpgradeable, AccessControlUpgradeable {
     IERC20 public wbtc;
 
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
 
     // Incoming exchange rate (WBTC -> strBTC)
     uint256 public incomingRateNumerator; // strBTC
@@ -48,12 +49,16 @@ contract WBTCConverter is PausableUpgradeable, AccessControlUpgradeable {
      * @param _wbtc wBTC Token Address
      * @param _strbtc strBTC Token Address
      */
-    function initialize(address _wbtc, address _strbtc) external initializer {
+    function initialize(address _wbtc, address _strbtc, address admin, address manager, address pauser)
+        external
+        initializer
+    {
         PausableUpgradeable.__Pausable_init();
         AccessControlUpgradeable.__AccessControl_init();
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(MANAGER_ROLE, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(MANAGER_ROLE, manager);
+        _grantRole(PAUSER_ROLE, pauser);
 
         wbtc = IERC20(_wbtc);
         strbtc = IStrBTC(_strbtc);
@@ -162,7 +167,7 @@ contract WBTCConverter is PausableUpgradeable, AccessControlUpgradeable {
      * @param numerator The numerator of the exchange rate (number of strBTC)
      * @param denominator The denominator of the exchange rate (number of wBTC)
      */
-    function setExchangeRate(uint256 numerator, uint256 denominator) external onlyRole(MANAGER_ROLE) {
+    function setCommonExchangeRate(uint256 numerator, uint256 denominator) external onlyRole(MANAGER_ROLE) {
         if (numerator == 0) revert NumeratorMustBeGreaterThanZero();
         if (denominator == 0) revert DenominatorMustBeGreaterThanZero();
 
@@ -187,14 +192,14 @@ contract WBTCConverter is PausableUpgradeable, AccessControlUpgradeable {
     /**
      * @notice Pauses all conversions
      */
-    function pause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function pause() external onlyRole(PAUSER_ROLE) {
         _pause();
     }
 
     /**
      * @notice Resumes all conversions
      */
-    function unpause() external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function unpause() external onlyRole(PAUSER_ROLE) {
         _unpause();
     }
 
