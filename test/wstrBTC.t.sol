@@ -169,7 +169,9 @@ contract WstrBTCTest is Test {
     }
 
     function testUnwrapAfterMintRewards() public {
-        uint256 initialWrapAmount = 5 * BTC;
+        uint256 initialWrapAmount = 7 * BTC + 101;
+
+        uint256 totalSupplyBeforeRewards = strBTCContract.totalSupply();
 
         vm.prank(alice);
         strBTCContract.approve(address(wstrBTCContract), initialWrapAmount);
@@ -190,21 +192,29 @@ contract WstrBTCTest is Test {
         strBTCContract.mintRewards(0, rewardAmount, validSignature);
 
         uint256 totalSupplyAfterRewards = strBTCContract.totalSupply();
-        uint256 totalSharesAfterRewards = strBTCContract.totalShares();
 
         assertEq(totalSupplyAfterRewards, INITIAL_SUPPLY + rewardAmount, "Total supply incorrect after rewards");
 
-        uint256 expectedStrBTCFromUnwrap = (wstrBTCMinted * totalSupplyAfterRewards) / totalSharesAfterRewards;
+        uint256 expectedStrBTCFromUnwrap = (initialWrapAmount * totalSupplyAfterRewards) / totalSupplyBeforeRewards;
 
         vm.prank(alice);
         uint256 strBTCUnwrapped = wstrBTCContract.unwrap(wstrBTCMinted);
 
         assertEq(strBTCUnwrapped, expectedStrBTCFromUnwrap, "Unwrapped strBTC amount incorrect after rewards");
 
-        uint256 aliceFinalStrBTCBalance = strBTCContract.balanceOf(alice);
-        uint256 expectedFinalBalance = INITIAL_SUPPLY + rewardAmount;
+        uint256 strBTCSharesOfWrapper = strBTCContract.getShares(address(wstrBTCContract));
+        assertEq(strBTCSharesOfWrapper, 1, "Shares of wstrBTC contract should be 1");
 
-        assertEq(aliceFinalStrBTCBalance, expectedFinalBalance, "Alice's strBTC balance incorrect after unwrap");
+        uint256 strBTCBalanceOfWrapper = strBTCContract.balanceOf(address(wstrBTCContract));
+        uint256 aliceFinalStrBTCBalance = strBTCContract.balanceOf(alice);
+
+        // we can loose at most 1 sat due to rounding errors, which must stay inside wstrBTC contract
+        assertLe(strBTCBalanceOfWrapper, 1, "strBTC balace of contract wstrBTC should be at most 1 sat");
+
+        uint256 expectedFinalBalance = INITIAL_SUPPLY + rewardAmount - strBTCBalanceOfWrapper;
+
+        // 1 satoshi is lost due to rounding errors, since 1 share is left in wstrBTC contract
+        assertLe(expectedFinalBalance - aliceFinalStrBTCBalance, 1, "Alice's strBTC balance incorrect after unwrap");
 
         uint256 aliceFinalWstrBTCBalance = wstrBTCContract.balanceOf(alice);
         assertEq(aliceFinalWstrBTCBalance, 0, "Alice's wstrBTC balance should be zero after unwrap");
@@ -375,6 +385,8 @@ contract WstrBTCTest is Test {
 
         strBTCContract.mint(invoice, signature);
 
+        uint256 totalPooledStrBTCBeforeRebase = strBTCContract.totalSupply();
+
         vm.assume(aliceWrapAmount > 0 && aliceWrapAmount <= strBTCContract.balanceOf(alice));
         vm.assume(bobWrapAmount > 0 && bobWrapAmount <= strBTCContract.balanceOf(bob));
 
@@ -390,7 +402,6 @@ contract WstrBTCTest is Test {
         vm.prank(bob);
         uint256 bobWstrBTCMinted = wstrBTCContract.wrap(bobWrapAmount);
 
-        uint256 initialTotalShares = strBTCContract.totalShares();
 
         uint256 rewardAmount = 5 * BTC;
         bytes32 totalSupplyUpdateHash = strBTCContract.getTotalSupplyUpdateHash(0, rewardAmount);
@@ -402,8 +413,8 @@ contract WstrBTCTest is Test {
 
         uint256 totalPooledStrBTCAfterRebase = strBTCContract.totalSupply();
 
-        uint256 expectedAliceUnwrapped = (aliceWstrBTCMinted * totalPooledStrBTCAfterRebase) / initialTotalShares;
-        uint256 expectedBobUnwrapped = (bobWstrBTCMinted * totalPooledStrBTCAfterRebase) / initialTotalShares;
+        uint256 expectedAliceUnwrapped = (aliceWrapAmount * totalPooledStrBTCAfterRebase) / totalPooledStrBTCBeforeRebase;
+        uint256 expectedBobUnwrapped = (bobWrapAmount * totalPooledStrBTCAfterRebase) / totalPooledStrBTCBeforeRebase;
 
         vm.prank(alice);
         uint256 aliceStrBTCUnwrapped = wstrBTCContract.unwrap(aliceWstrBTCMinted);
@@ -412,11 +423,11 @@ contract WstrBTCTest is Test {
         uint256 bobStrBTCUnwrapped = wstrBTCContract.unwrap(bobWstrBTCMinted);
 
         assertApproxEqAbs(
-            aliceStrBTCUnwrapped, expectedAliceUnwrapped, 10, "Alice's unwrapped strBTC amount incorrect after rebase"
+            aliceStrBTCUnwrapped, expectedAliceUnwrapped, 3, "Alice's unwrapped strBTC amount incorrect after rebase"
         );
 
         assertApproxEqAbs(
-            bobStrBTCUnwrapped, expectedBobUnwrapped, 10, "Bob's unwrapped strBTC amount incorrect after rebase"
+            bobStrBTCUnwrapped, expectedBobUnwrapped, 3, "Bob's unwrapped strBTC amount incorrect after rebase"
         );
 
         assertEq(wstrBTCContract.balanceOf(alice), 0, "Alice's wstrBTC balance should be zero after unwrap");
