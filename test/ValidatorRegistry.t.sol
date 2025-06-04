@@ -92,7 +92,7 @@ contract ValidatorRegistryTest is Test {
 
         // Invalid signature
         bytes memory invalidSignature =
-            hex"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+            hex"c7bc9d74ada826f2826f2964aadc9eebc5e404ae704042c133d2c14442c2fed854ff0b9e565c53c0543e2d4eed3d4e0d07943bd38aaca360cd543286f6fbb509";
 
         vr.setJointPublicKey(key1);
 
