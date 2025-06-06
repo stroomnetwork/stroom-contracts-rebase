@@ -402,7 +402,6 @@ contract WstrBTCTest is Test {
         vm.prank(bob);
         uint256 bobWstrBTCMinted = wstrBTCContract.wrap(bobWrapAmount);
 
-
         uint256 rewardAmount = 5 * BTC;
         bytes32 totalSupplyUpdateHash = strBTCContract.getTotalSupplyUpdateHash(0, rewardAmount);
         console.logBytes32(totalSupplyUpdateHash);
@@ -413,7 +412,8 @@ contract WstrBTCTest is Test {
 
         uint256 totalPooledStrBTCAfterRebase = strBTCContract.totalSupply();
 
-        uint256 expectedAliceUnwrapped = (aliceWrapAmount * totalPooledStrBTCAfterRebase) / totalPooledStrBTCBeforeRebase;
+        uint256 expectedAliceUnwrapped =
+            (aliceWrapAmount * totalPooledStrBTCAfterRebase) / totalPooledStrBTCBeforeRebase;
         uint256 expectedBobUnwrapped = (bobWrapAmount * totalPooledStrBTCAfterRebase) / totalPooledStrBTCBeforeRebase;
 
         vm.prank(alice);
