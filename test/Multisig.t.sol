@@ -19,6 +19,7 @@ contract MultisigTest is Test {
     address public admin;
     address public converter;
     address public pauser;
+    address public proposer;
     uint256 public constant TIMELOCK_DELAY = 2 days;
     uint256 public constant SAFE_THRESHOLD = 2;
 
@@ -35,6 +36,7 @@ contract MultisigTest is Test {
         admin = address(0x9999);
         converter = address(0x8888);
         pauser = address(0x7777);
+        proposer = address(0x6666);
 
         uint256[] memory keys = new uint256[](3);
         keys[0] = 0x1;
@@ -48,10 +50,10 @@ contract MultisigTest is Test {
 
         // Deploy timelock
         address[] memory proposers = new address[](1);
-        proposers[0] = address(safe);
+        proposers[0] = proposer;
 
         address[] memory executors = new address[](1);
-        executors[0] = admin;
+        executors[0] = address(safe);
 
         timelock = new StroomTimelockController(TIMELOCK_DELAY, proposers, executors, admin);
 
@@ -65,18 +67,20 @@ contract MultisigTest is Test {
     }
 
     function testProposers() public view {
-        assertTrue(timelock.hasRole(PROPOSER_ROLE, address(safe)));
+        assertTrue(timelock.hasRole(PROPOSER_ROLE, proposer));
+        assertFalse(timelock.hasRole(PROPOSER_ROLE, address(safe)));
         assertFalse(timelock.hasRole(PROPOSER_ROLE, admin));
     }
 
     function testExecutors() public view {
-        assertTrue(timelock.hasRole(EXECUTOR_ROLE, admin));
-        assertFalse(timelock.hasRole(EXECUTOR_ROLE, address(safe)));
+        assertTrue(timelock.hasRole(EXECUTOR_ROLE, address(safe)));
+        assertFalse(timelock.hasRole(EXECUTOR_ROLE, admin));
+        assertFalse(timelock.hasRole(EXECUTOR_ROLE, proposer));
     }
 
     function testCancellers() public view {
         assertTrue(timelock.hasRole(CANCELLER_ROLE, admin));
-        assertTrue(timelock.hasRole(CANCELLER_ROLE, address(safe)));
+        assertTrue(timelock.hasRole(CANCELLER_ROLE, proposer));
     }
 
     function testTimelockControlsStrBTCAdmin() public view {
@@ -143,74 +147,37 @@ contract MultisigTest is Test {
         assertEq(token.minTimeBetweenRewards(), newMinTime);
     }
 
-    function testSingleSignatureCannotSchedule() public {
+    function testProposerCanSchedule() public {
         bytes memory data = abi.encodeWithSelector(token.addConverter.selector, converter);
 
-        bytes memory timelockData = abi.encodeWithSelector(
-            timelock.schedule.selector, address(token), 0, data, bytes32(0), bytes32(0), TIMELOCK_DELAY
-        );
-
-        uint256[] memory singleKey = new uint256[](1);
-        singleKey[0] = ownerPrivateKeys[0];
-
-        vm.expectRevert();
-        safeUtils.execContractCallWithSigners(safe, address(timelock), timelockData, singleKey);
-    }
-
-    function testThresholdSignaturesCanSchedule() public {
-        bytes memory data = abi.encodeWithSelector(token.addConverter.selector, converter);
-
-        bytes memory timelockData = abi.encodeWithSelector(
-            timelock.schedule.selector, address(token), 0, data, bytes32(0), bytes32(0), TIMELOCK_DELAY
-        );
-
-        uint256[] memory thresholdKeys = new uint256[](SAFE_THRESHOLD);
-        for (uint256 i = 0; i < SAFE_THRESHOLD; i++) {
-            thresholdKeys[i] = ownerPrivateKeys[i];
-        }
-
-        bool success = safeUtils.execContractCallWithSigners(safe, address(timelock), timelockData, thresholdKeys);
-        assertTrue(success);
+        vm.prank(proposer);
+        timelock.schedule(address(token), 0, data, bytes32(0), bytes32(0), TIMELOCK_DELAY);
 
         bytes32 operationId = timelock.hashOperation(address(token), 0, data, bytes32(0), bytes32(0));
         assertTrue(timelock.isOperationPending(operationId));
     }
 
-    function testInvalidSignatureCannotSchedule() public {
+    function testNonProposerCannotSchedule() public {
         bytes memory data = abi.encodeWithSelector(token.addConverter.selector, converter);
 
-        bytes memory timelockData = abi.encodeWithSelector(
-            timelock.schedule.selector, address(token), 0, data, bytes32(0), bytes32(0), TIMELOCK_DELAY
-        );
-
-        uint256[] memory invalidKeys = new uint256[](SAFE_THRESHOLD);
-        invalidKeys[0] = 0x999; // Invalid key
-        invalidKeys[1] = 0x888; // Invalid key
+        vm.expectRevert();
+        vm.prank(admin);
+        timelock.schedule(address(token), 0, data, bytes32(0), bytes32(0), TIMELOCK_DELAY);
 
         vm.expectRevert();
-        safeUtils.execContractCallWithSigners(safe, address(timelock), timelockData, invalidKeys);
-    }
-
-    function testNonceProtectionAgainstReplay() public {
-        bytes memory data = abi.encodeWithSelector(token.addConverter.selector, converter);
-
-        bytes memory timelockData = abi.encodeWithSelector(
-            timelock.schedule.selector, address(token), 0, data, bytes32(0), bytes32(0), TIMELOCK_DELAY
-        );
-
-        uint256[] memory thresholdKeys = new uint256[](SAFE_THRESHOLD);
-        for (uint256 i = 0; i < SAFE_THRESHOLD; i++) {
-            thresholdKeys[i] = ownerPrivateKeys[i];
-        }
-
-        bool success = safeUtils.execContractCallWithSigners(safe, address(timelock), timelockData, thresholdKeys);
-        assertTrue(success);
+        vm.prank(address(safe));
+        timelock.schedule(address(token), 0, data, bytes32(0), bytes32(0), TIMELOCK_DELAY);
 
         vm.expectRevert();
-        safeUtils.execContractCallWithSigners(safe, address(timelock), timelockData, thresholdKeys);
+        vm.prank(owners[0]);
+        timelock.schedule(address(token), 0, data, bytes32(0), bytes32(0), TIMELOCK_DELAY);
+
+        vm.expectRevert();
+        vm.prank(0x0000000000000000000000000000000000001234);
+        timelock.schedule(address(token), 0, data, bytes32(0), bytes32(0), TIMELOCK_DELAY);
     }
 
-    function testOnlyAdminCanExecute() public {
+    function testOnlyMultisigCanExecute() public {
         bytes memory data = abi.encodeWithSelector(token.addConverter.selector, converter);
 
         _scheduleOperationThroughSafe(address(token), data);
@@ -223,21 +190,39 @@ contract MultisigTest is Test {
         vm.stopPrank();
 
         vm.startPrank(admin);
+        vm.expectRevert();
         timelock.execute(address(token), 0, data, bytes32(0), bytes32(0));
         vm.stopPrank();
+
+        bytes memory executeData =
+            abi.encodeWithSelector(timelock.execute.selector, address(token), 0, data, bytes32(0), bytes32(0));
+
+        uint256[] memory thresholdKeys = new uint256[](SAFE_THRESHOLD);
+        for (uint256 i = 0; i < SAFE_THRESHOLD; i++) {
+            thresholdKeys[i] = ownerPrivateKeys[i];
+        }
+
+        bool success = safeUtils.execContractCallWithSigners(safe, address(timelock), executeData, thresholdKeys);
+        assertTrue(success);
 
         assertTrue(token.hasRole(CONVERTER_ROLE, converter));
     }
 
-    function testAdminCannotExecuteBeforeDelay() public {
+    function testMultisigCannotExecuteBeforeDelay() public {
         bytes memory data = abi.encodeWithSelector(token.addConverter.selector, converter);
 
         _scheduleOperationThroughSafe(address(token), data);
 
-        vm.startPrank(admin);
+        bytes memory executeData =
+            abi.encodeWithSelector(timelock.execute.selector, address(token), 0, data, bytes32(0), bytes32(0));
+
+        uint256[] memory thresholdKeys = new uint256[](SAFE_THRESHOLD);
+        for (uint256 i = 0; i < SAFE_THRESHOLD; i++) {
+            thresholdKeys[i] = ownerPrivateKeys[i];
+        }
+
         vm.expectRevert();
-        timelock.execute(address(token), 0, data, bytes32(0), bytes32(0));
-        vm.stopPrank();
+        safeUtils.execContractCallWithSigners(safe, address(timelock), executeData, thresholdKeys);
 
         assertFalse(token.hasRole(CONVERTER_ROLE, converter));
     }
@@ -266,15 +251,19 @@ contract MultisigTest is Test {
     function testNonOwnerCannotCreateSafeTransaction() public {
         bytes memory data = abi.encodeWithSelector(token.addConverter.selector, converter);
 
-        bytes memory timelockData = abi.encodeWithSelector(
-            timelock.schedule.selector, address(token), 0, data, bytes32(0), bytes32(0), TIMELOCK_DELAY
-        );
+        vm.prank(proposer);
+        timelock.schedule(address(token), 0, data, bytes32(0), bytes32(0), TIMELOCK_DELAY);
+
+        vm.warp(block.timestamp + TIMELOCK_DELAY + 1);
+
+        bytes memory executeData =
+            abi.encodeWithSelector(timelock.execute.selector, address(token), 0, data, bytes32(0), bytes32(0));
 
         uint256[] memory nonOwnerKey = new uint256[](1);
-        nonOwnerKey[0] = 0x999; // Not an owner
+        nonOwnerKey[0] = 0x999;
 
         vm.expectRevert();
-        safeUtils.execContractCallWithSigners(safe, address(timelock), timelockData, nonOwnerKey);
+        safeUtils.execContractCallWithSigners(safe, address(timelock), executeData, nonOwnerKey);
     }
 
     function testDirectCallsToStrBTCFail() public {
@@ -305,7 +294,7 @@ contract MultisigTest is Test {
         assertFalse(token.hasRole(CONVERTER_ROLE, converter));
     }
 
-    function testSafeCannotExecuteDirectly() public {
+    function testSafeCanExecuteAfterDelay() public {
         bytes memory data = abi.encodeWithSelector(token.addConverter.selector, converter);
 
         _scheduleOperationThroughSafe(address(token), data);
@@ -320,19 +309,19 @@ contract MultisigTest is Test {
             thresholdKeys[i] = ownerPrivateKeys[i];
         }
 
-        vm.expectRevert();
-        safeUtils.execContractCallWithSigners(safe, address(timelock), executeData, thresholdKeys);
+        bool success = safeUtils.execContractCallWithSigners(safe, address(timelock), executeData, thresholdKeys);
+        assertTrue(success);
 
-        assertFalse(token.hasRole(CONVERTER_ROLE, converter));
+        assertTrue(token.hasRole(CONVERTER_ROLE, converter));
     }
 
     function testSeparationOfConcerns() public view {
-        assertTrue(timelock.hasRole(PROPOSER_ROLE, address(safe)));
-        assertFalse(timelock.hasRole(EXECUTOR_ROLE, address(safe)));
+        assertTrue(timelock.hasRole(PROPOSER_ROLE, proposer));
+        assertTrue(timelock.hasRole(EXECUTOR_ROLE, address(safe)));
 
-        assertTrue(timelock.hasRole(EXECUTOR_ROLE, admin));
         assertTrue(timelock.hasRole(CANCELLER_ROLE, admin));
         assertFalse(timelock.hasRole(PROPOSER_ROLE, admin));
+        assertFalse(timelock.hasRole(EXECUTOR_ROLE, admin));
     }
 
     function testAdminCannotBypassMultisig() public {
@@ -374,7 +363,7 @@ contract MultisigTest is Test {
     function testCompleteWorkflow() public {
         bytes memory data = abi.encodeWithSelector(token.addConverter.selector, converter);
 
-        // Step 1: Safe schedules operation
+        // Step 1: Proposer schedules operation
         bytes32 operationId = _scheduleOperationThroughSafe(address(token), data);
         assertTrue(timelock.isOperationPending(operationId));
 
@@ -382,8 +371,8 @@ contract MultisigTest is Test {
         vm.warp(block.timestamp + TIMELOCK_DELAY + 1);
         assertTrue(timelock.isOperationReady(operationId));
 
-        // Step 3: Admin executes
-        vm.startPrank(admin);
+        // Step 3: Safe executes via multisig
+        vm.startPrank(address(safe));
         timelock.execute(address(token), 0, data, bytes32(0), bytes32(0));
         vm.stopPrank();
 
@@ -406,7 +395,7 @@ contract MultisigTest is Test {
 
         vm.warp(block.timestamp + TIMELOCK_DELAY + 1);
 
-        vm.startPrank(admin);
+        vm.startPrank(address(safe));
         timelock.execute(address(token), 0, data1, bytes32(0), bytes32(0));
         timelock.execute(address(token), 0, data2, bytes32(0), bytes32(0));
         vm.stopPrank();
@@ -415,7 +404,7 @@ contract MultisigTest is Test {
         assertTrue(token.hasRole(CONVERTER_ROLE, converter2));
     }
 
-    function testAdminSelectiveExecution() public {
+    function testSafeSelectiveExecution() public {
         address converter2 = address(0x7777);
 
         bytes memory data1 = abi.encodeWithSelector(token.addConverter.selector, converter);
@@ -427,7 +416,7 @@ contract MultisigTest is Test {
 
         vm.warp(block.timestamp + TIMELOCK_DELAY + 1);
 
-        vm.startPrank(admin);
+        vm.startPrank(address(safe));
         timelock.execute(address(token), 0, data1, bytes32(0), bytes32(0));
         vm.stopPrank();
 
@@ -446,7 +435,7 @@ contract MultisigTest is Test {
 
         assertTrue(timelock.isOperationReady(operationId));
 
-        vm.startPrank(admin);
+        vm.startPrank(address(safe));
         timelock.execute(address(token), 0, data, bytes32(0), bytes32(0));
         vm.stopPrank();
 
@@ -456,16 +445,8 @@ contract MultisigTest is Test {
     // ======= Helper functions =======
 
     function _scheduleOperationThroughSafe(address target, bytes memory data) internal returns (bytes32) {
-        bytes memory timelockData =
-            abi.encodeWithSelector(timelock.schedule.selector, target, 0, data, bytes32(0), bytes32(0), TIMELOCK_DELAY);
-
-        uint256[] memory thresholdKeys = new uint256[](SAFE_THRESHOLD);
-        for (uint256 i = 0; i < SAFE_THRESHOLD; i++) {
-            thresholdKeys[i] = ownerPrivateKeys[i];
-        }
-
-        bool success = safeUtils.execContractCallWithSigners(safe, address(timelock), timelockData, thresholdKeys);
-        assertTrue(success);
+        vm.prank(proposer);
+        timelock.schedule(target, 0, data, bytes32(0), bytes32(0), TIMELOCK_DELAY);
 
         return timelock.hashOperation(target, 0, data, bytes32(0), bytes32(0));
     }
@@ -475,9 +456,16 @@ contract MultisigTest is Test {
 
         vm.warp(block.timestamp + TIMELOCK_DELAY + 1);
 
-        vm.startPrank(admin);
-        timelock.execute(target, 0, data, bytes32(0), bytes32(0));
-        vm.stopPrank();
+        bytes memory executeData =
+            abi.encodeWithSelector(timelock.execute.selector, target, 0, data, bytes32(0), bytes32(0));
+
+        uint256[] memory thresholdKeys = new uint256[](SAFE_THRESHOLD);
+        for (uint256 i = 0; i < SAFE_THRESHOLD; i++) {
+            thresholdKeys[i] = ownerPrivateKeys[i];
+        }
+
+        bool success = safeUtils.execContractCallWithSigners(safe, address(timelock), executeData, thresholdKeys);
+        assertTrue(success);
 
         assertTrue(timelock.isOperationDone(operationId));
     }
