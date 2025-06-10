@@ -15,7 +15,7 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 
 contract DeployScript is Script {
     BitcoinNetworkEncoder.Network private network;
-    address admin = vm.envAddress("ADMIN_ADDRESS"); // timelock address
+    address admin = vm.envAddress("ADMIN_ADDRESS"); // msg.sender
     address pauser = vm.envAddress("PAUSER_ADDRESS");
     address manager = vm.envAddress("MANAGER_ADDRESS");
     address wbtcAddress = vm.envAddress("WBTC_ADDRESS");
@@ -39,6 +39,9 @@ contract DeployScript is Script {
             new TransparentUpgradeableProxy(address(strBtcImplementation), admin, strBtcData);
         strBTC strBtcContract = strBTC(address(strBtcProxy));
 
+        // Get strBTC ProxyAdmin address
+        address strBtcProxyAdmin = _getProxyAdmin(address(strBtcProxy));
+
         // Deploy wstrBTC
         wstrBTC wstrBtcContract = new wstrBTC(address(strBtcContract));
 
@@ -55,6 +58,9 @@ contract DeployScript is Script {
         TransparentUpgradeableProxy wBtcConverterProxy =
             new TransparentUpgradeableProxy(address(wBtcConverterImplementation), admin, wBtcConverterData);
         WBTCConverter wBtcConverterContract = WBTCConverter(address(wBtcConverterProxy));
+
+        // Get wBTCConverter ProxyAdmin address
+        address wBtcConverterProxyAdmin = _getProxyAdmin(address(wBtcConverterProxy));
 
         // Grant CONVERTER_ROLE to wBTCConverter in strBTC
         strBtcContract.grantRole(strBtcContract.CONVERTER_ROLE(), address(wBtcConverterContract));
@@ -90,5 +96,30 @@ contract DeployScript is Script {
                 OpenZeppelinStrings.toHexString(uint256(uint160(address(wBtcConverterContract))))
             )
         );
+        console.logString(
+            string.concat(
+                "APP_ETH_STRBTC_PROXY_ADMIN_ADDRESS=",
+                OpenZeppelinStrings.toHexString(uint256(uint160(strBtcProxyAdmin)))
+            )
+        );
+        console.logString(
+            string.concat(
+                "APP_ETH_WBTC_CONVERTER_PROXY_ADMIN_ADDRESS=",
+                OpenZeppelinStrings.toHexString(uint256(uint160(wBtcConverterProxyAdmin)))
+            )
+        );
+    }
+
+    /**
+     * @dev Get ProxyAdmin address from TransparentUpgradeableProxy
+     * @param proxyAddress Address of the proxy contract
+     * @return Address of the ProxyAdmin contract
+     */
+    function _getProxyAdmin(address proxyAddress) private view returns (address) {
+        // ERC1967 admin storage slot
+        // keccak256("eip1967.proxy.admin") - 1
+        bytes32 ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103;
+
+        return address(uint160(uint256(vm.load(proxyAddress, ADMIN_SLOT))));
     }
 }
