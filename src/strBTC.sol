@@ -30,6 +30,7 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     error RewardTooBig();
     error MaxRewardPercentTooHigh();
     error MinTimeBetweenRewardsTooLow();
+    error InvalidAddress();
 
     using BitcoinUtils for BitcoinNetworkEncoder.Network;
 
@@ -256,7 +257,7 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     }
 
     /**
-     * @notice Adds pauser to the whitelist
+     * @notice Adds pauser role
      * @param pauser Pauser address
      */
     function addPauser(address pauser) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -264,12 +265,23 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     }
 
     /**
-     * @notice Removes pauser from the whitelist
+     * @notice Removes pauser role
      * @param pauser Pauser address
      */
     function removePauser(address pauser) external onlyRole(DEFAULT_ADMIN_ROLE) {
         revokeRole(PAUSER_ROLE, pauser);
     }
+
+    /**
+     * @notice Change the validator registry contract address
+     * @param _validatorRegistry The new validator registry contract address
+     */
+    function setValidatorRegistry(address _validatorRegistry) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_validatorRegistry == address(0)) revert InvalidAddress();
+        validatorRegistry = ValidatorRegistry(_validatorRegistry);
+    }
+
+    // ========= Converter-only ========
 
     /**
      * @notice Safe mint strBTC for wBTC converter

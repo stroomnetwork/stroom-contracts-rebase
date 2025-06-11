@@ -777,4 +777,16 @@ contract STRBTCTest is Test {
         assertApproxEqAbs(token.getPooledBTCByShares(token.getSharesByPooledBTC(1 * BTC)), 1 * BTC, 1);
         assertApproxEqAbs(token.getSharesByPooledBTC(token.getPooledBTCByShares(1 * BTC)), 1 * BTC, 1);
     }
+
+    function testSetValidatorRegistry() public {
+        address newValidatorRegistry = address(0x1234567890123456789012345678901234567890);
+
+        vm.prank(alice);
+        vm.expectRevert();
+        token.setValidatorRegistry(newValidatorRegistry);
+
+        vm.prank(admin);
+        token.setValidatorRegistry(newValidatorRegistry);
+        assertEq(address(token.validatorRegistry()), newValidatorRegistry, "Validator registry should be updated");
+    }
 }
