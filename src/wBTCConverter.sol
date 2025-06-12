@@ -204,11 +204,11 @@ contract WBTCConverter is PausableUpgradeable, AccessControlUpgradeable {
     }
 
     /**
-     * @notice Emergency withdrawal of tokens from the contract
+     * @notice Withdrawal of WBTC tokens from the contract for swapping to native BTC
      * @param token The address of the token to withdraw
      * @param amount The amount of tokens
      */
-    function emergencyWithdraw(address token, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function withdraw(address token, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
         IERC20(token).transfer(msg.sender, amount);
     }
 }

@@ -273,7 +273,7 @@ contract WBTCConverterTest is Test {
         wbtcConverter.convertWBTCToStrBTC(amount);
 
         vm.prank(owner);
-        wbtcConverter.emergencyWithdraw(address(wbtc), wbtc.balanceOf(address(wbtcConverter)));
+        wbtcConverter.withdraw(address(wbtc), wbtc.balanceOf(address(wbtcConverter)));
 
         vm.prank(user1);
         vm.expectRevert();
@@ -561,12 +561,12 @@ contract WBTCConverterTest is Test {
 
         vm.prank(user1);
         vm.expectRevert();
-        wbtcConverter.emergencyWithdraw(address(wbtc), converterBalance);
+        wbtcConverter.withdraw(address(wbtc), converterBalance);
 
         uint256 ownerBalanceBefore = wbtc.balanceOf(owner);
 
         vm.prank(owner);
-        wbtcConverter.emergencyWithdraw(address(wbtc), converterBalance);
+        wbtcConverter.withdraw(address(wbtc), converterBalance);
 
         assertEq(wbtc.balanceOf(address(wbtcConverter)), 0, "Converter should have zero WBTC balance after withdrawal");
         assertEq(wbtc.balanceOf(owner), ownerBalanceBefore + converterBalance, "Owner should receive withdrawn funds");
@@ -581,7 +581,7 @@ contract WBTCConverterTest is Test {
         assertEq(wbtc.balanceOf(address(wbtcConverter)), amount, "Converter should have received WBTC");
 
         vm.prank(owner);
-        wbtcConverter.emergencyWithdraw(address(wbtc), amount);
+        wbtcConverter.withdraw(address(wbtc), amount);
 
         assertEq(wbtc.balanceOf(address(wbtcConverter)), 0, "Converter should have no WBTC after emergency withdrawal");
 
@@ -614,7 +614,7 @@ contract WBTCConverterTest is Test {
 
         uint256 withdrawAmount = 5 * 10 ** 8;
         vm.prank(owner);
-        wbtcConverter.emergencyWithdraw(address(wbtc), withdrawAmount);
+        wbtcConverter.withdraw(address(wbtc), withdrawAmount);
 
         assertEq(
             wbtc.balanceOf(address(wbtcConverter)), amount - withdrawAmount, "Converter should have remaining WBTC"
@@ -646,7 +646,7 @@ contract WBTCConverterTest is Test {
         assertEq(newMockWBTC.balanceOf(address(wbtcConverter)), amount, "Converter should have mock tokens");
 
         vm.prank(owner);
-        wbtcConverter.emergencyWithdraw(address(newMockWBTC), amount);
+        wbtcConverter.withdraw(address(newMockWBTC), amount);
 
         assertEq(
             newMockWBTC.balanceOf(address(wbtcConverter)), 0, "Converter should have no mock tokens after withdrawal"
@@ -720,7 +720,7 @@ contract WBTCConverterTest is Test {
 
         vm.prank(user1);
         vm.expectRevert();
-        wbtcConverter.emergencyWithdraw(address(wbtc), 1 * 10 ** 8);
+        wbtcConverter.withdraw(address(wbtc), 1 * 10 ** 8);
 
         vm.prank(user1);
         vm.expectRevert();
