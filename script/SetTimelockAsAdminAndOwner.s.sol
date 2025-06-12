@@ -55,36 +55,36 @@ contract SetTimelockAsAdminAndOwner is Script {
         vm.startBroadcast();
 
         // 1. Transfer strBTC admin role (DEFAULT_ADMIN_ROLE)
-        _transferStrBTCAdmin();
+        _transferStrBTCAdmin(timelock);
 
         // 2. Transfer upgrade admin for strBTC proxy
-        _transferProxyAdminOwnership(strBtcProxyAdmin, "strBTC");
+        _transferProxyAdminOwnership(strBtcProxyAdmin, "strBTC", timelock);
 
         // 3. Transfer wbtcConverter admin role (DEFAULT_ADMIN_ROLE)
-        _transferWBTCConverterAdmin();
+        _transferWBTCConverterAdmin(timelock);
 
         // 4. Transfer upgrade admin for wBTCConverter proxy
-        _transferProxyAdminOwnership(wbtcConverterProxyAdmin, "wBTCConverter");
+        _transferProxyAdminOwnership(wbtcConverterProxyAdmin, "wBTCConverter", timelock);
 
         // 5. Transfer UserActivator ownership
-        _transferUserActivatorOwnership();
+        _transferUserActivatorOwnership(timelock);
 
         // 6. Transfer ValidatorRegistry ownership
-        _transferValidatorRegistryOwnership();
+        _transferValidatorRegistryOwnership(timelock);
 
         vm.stopBroadcast();
 
         console.log("=== All admin roles transferred to timelock! ===");
     }
 
-    function _transferStrBTCAdmin() internal {
+    function _transferStrBTCAdmin(address _timelock) internal {
         strBTC token = strBTC(strBtcProxy);
         bytes32 adminRole = token.DEFAULT_ADMIN_ROLE();
 
         console.log("Transferring strBTC admin role...");
 
         // Grant admin role to timelock
-        token.grantRole(adminRole, timelock);
+        token.grantRole(adminRole, _timelock);
         console.log("    Granted DEFAULT_ADMIN_ROLE to timelock");
 
         // Renounce admin role from current deployer
@@ -92,33 +92,35 @@ contract SetTimelockAsAdminAndOwner is Script {
         console.log("    Renounced DEFAULT_ADMIN_ROLE from deployer");
 
         // Verify transfer
-        require(token.hasRole(adminRole, timelock), "Failed to grant admin role to timelock");
+        require(token.hasRole(adminRole, _timelock), "Failed to grant admin role to timelock");
         require(!token.hasRole(adminRole, msg.sender), "Failed to renounce admin role from deployer");
         console.log("    strBTC admin role successfully transferred");
     }
 
-    function _transferProxyAdminOwnership(address proxyAdminAddress, string memory contractName) internal {
+    function _transferProxyAdminOwnership(address proxyAdminAddress, string memory contractName, address _timelock)
+        internal
+    {
         console.log(string.concat("Transferring ", contractName, " ProxyAdmin ownership..."));
 
         ProxyAdmin proxyAdmin = ProxyAdmin(proxyAdminAddress);
 
         // Transfer ownership of ProxyAdmin to timelock
-        proxyAdmin.transferOwnership(timelock);
+        proxyAdmin.transferOwnership(_timelock);
         console.log(string.concat(contractName, " ProxyAdmin ownership transferred to timelock"));
 
         // Verify transfer
-        require(proxyAdmin.owner() == timelock, "Failed to transfer ProxyAdmin ownership");
+        require(proxyAdmin.owner() == _timelock, "Failed to transfer ProxyAdmin ownership");
         console.log(string.concat(contractName, " upgrade admin successfully transferred"));
     }
 
-    function _transferWBTCConverterAdmin() internal {
+    function _transferWBTCConverterAdmin(address _timelock) internal {
         WBTCConverter converter = WBTCConverter(wbtcConverter);
         bytes32 adminRole = converter.DEFAULT_ADMIN_ROLE();
 
         console.log("Transferring wBTCConverter admin role...");
 
         // Grant admin role to timelock
-        converter.grantRole(adminRole, timelock);
+        converter.grantRole(adminRole, _timelock);
         console.log("    Granted DEFAULT_ADMIN_ROLE to timelock");
 
         // Renounce admin role from current deployer
@@ -126,36 +128,36 @@ contract SetTimelockAsAdminAndOwner is Script {
         console.log("    Renounced DEFAULT_ADMIN_ROLE from deployer");
 
         // Verify transfer
-        require(converter.hasRole(adminRole, timelock), "Failed to grant admin role to timelock");
+        require(converter.hasRole(adminRole, _timelock), "Failed to grant admin role to timelock");
         require(!converter.hasRole(adminRole, msg.sender), "Failed to renounce admin role from deployer");
         console.log("    wBTCConverter admin role successfully transferred");
     }
 
-    function _transferUserActivatorOwnership() internal {
+    function _transferUserActivatorOwnership(address _timelock) internal {
         console.log("Transferring UserActivator ownership...");
 
         UserActivator activator = UserActivator(userActivator);
 
         // Transfer ownership to timelock
-        activator.transferOwnership(timelock);
+        activator.transferOwnership(_timelock);
         console.log("    UserActivator ownership transferred to timelock");
 
         // Verify transfer
-        require(activator.owner() == timelock, "Failed to transfer UserActivator ownership");
+        require(activator.owner() == _timelock, "Failed to transfer UserActivator ownership");
         console.log("    UserActivator ownership successfully transferred");
     }
 
-    function _transferValidatorRegistryOwnership() internal {
+    function _transferValidatorRegistryOwnership(address _timelock) internal {
         console.log("Transferring ValidatorRegistry ownership...");
 
         ValidatorRegistry registry = ValidatorRegistry(validatorRegistry);
 
         // Transfer ownership to timelock
-        registry.transferOwnership(timelock);
+        registry.transferOwnership(_timelock);
         console.log("    ValidatorRegistry ownership transferred to timelock");
 
         // Verify transfer
-        require(registry.owner() == timelock, "Failed to transfer ValidatorRegistry ownership");
+        require(registry.owner() == _timelock, "Failed to transfer ValidatorRegistry ownership");
         console.log("    ValidatorRegistry ownership successfully transferred");
     }
 }
