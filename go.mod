@@ -1,4 +1,4 @@
-module stroom-contracts
+module github.com/stroomnetwork/stroom-contracts
 
 go 1.23.2
 
