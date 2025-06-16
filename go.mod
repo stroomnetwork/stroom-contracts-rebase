@@ -1,4 +1,4 @@
-module stroom-contracts-rebase
+module stroom-contracts
 
 go 1.23.2
 
