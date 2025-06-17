@@ -1,6 +1,6 @@
-module stroom-contracts-rebase
+module github.com/stroomnetwork/stroom-contracts-rebase
 
-go 1.23.2
+go 1.24
 
 require github.com/ethereum/go-ethereum v1.14.12
 
