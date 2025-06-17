@@ -10,10 +10,10 @@
 	path = lib/bip340-solidity
 	url = https://github.com/zerodao-finance/bip340-solidity
 	commit = 5a25f7079ecfb46d34429e8a146f8b57311d3c62
+[submodule "lib/safe-contracts"]
+	path = lib/safe-contracts
+	url = https://github.com/safe-global/safe-contracts
 [submodule "lib/blockchain-tools"]
 	path = lib/blockchain-tools
 	url = https://github.com/stroomnetwork/blockchain-tools
 	commit = 1e1f55ac02f452ad4965db4c5ff1248783937b32
-[submodule "lib/safe-contracts"]
-	path = lib/safe-contracts
-	url = https://github.com/safe-global/safe-contracts
