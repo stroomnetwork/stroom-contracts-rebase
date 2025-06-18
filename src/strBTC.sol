@@ -322,6 +322,8 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
 //        whenNotPaused
 //        onlyValidator(MESSAGE_MINT, encodeInvoice(invoice), signature)
     {
+        revert InvalidTotalSupplyNonce();
+
         _mint(invoice.amount, invoice.recipient, invoice.btcDepositId);
     }
 
