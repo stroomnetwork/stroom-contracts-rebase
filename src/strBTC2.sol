@@ -74,11 +74,9 @@ contract strBTC2 is ERC20Upgradeable, ValidatorMessageReceiver
 
     function initialize(
         BitcoinNetworkEncoder.Network _network,
-        ValidatorRegistry _validatorRegistry,
-        address _admin,
-        address _pauser
+        ValidatorRegistry _validatorRegistry
     ) public initializer {
-        ERC20Upgradeable.__ERC20_init("Stroom Bitcoin", "strBTC");
+//        ERC20Upgradeable.__ERC20_init("Stroom Bitcoin", "strBTC");
 //        PausableUpgradeable.__Pausable_init();
 //        AccessControlUpgradeable.__AccessControl_init();
         ValidatorMessageReceiver.initialize(_validatorRegistry);
