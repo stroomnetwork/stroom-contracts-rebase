@@ -317,7 +317,7 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
      * @dev Mints `_amount` of BTC to `_recipient` with a signature.
      * Anyone can use if they have valid signature from the owner.
      */
-    function mint(MintInvoice calldata invoice, bytes calldata signature)
+    function mint123(MintInvoice calldata invoice, bytes calldata signature)
         public
 //        whenNotPaused
 //        onlyValidator(MESSAGE_MINT, encodeInvoice(invoice), signature)
