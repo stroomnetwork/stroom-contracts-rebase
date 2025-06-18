@@ -40,6 +40,8 @@ go-init: ## Initialize Go module
 export-abi: build ## Export contracts ABI and bytecode for strBTC, wstrBTC
 	cat ./out/strBTC.sol/strBTC.json | jq -r '.abi' > ./out/strBTC.abi.json
 	cat ./out/strBTC.sol/strBTC.json | jq -r '.bytecode.object' | sed 's/0x//' > ./out/strBTC.bin
+	cat ./out/strBTC2.sol/strBTC2.json | jq -r '.abi' > ./out/strBTC2.abi.json
+	cat ./out/strBTC2.sol/strBTC2.json | jq -r '.bytecode.object' | sed 's/0x//' > ./out/strBTC2.bin
 	cat ./out/wstrBTC.sol/wstrBTC.json | jq -r '.abi' > ./out/wstrBTC.abi.json
 	cat ./out/wstrBTC.sol/wstrBTC.json | jq -r '.bytecode.object' | sed 's/0x//' > ./out/wstrBTC.bin
 	cat ./out/UserActivator.sol/UserActivator.json | jq -r '.abi' > ./out/UserActivator.abi.json
@@ -53,6 +55,7 @@ export-abi: build ## Export contracts ABI and bytecode for strBTC, wstrBTC
 .PHONY: go-gen
 go-gen: build export-abi ## Generate Go bindings
 	abigen --abi ./out/strBTC.abi.json --bin ./out/strBTC.bin --pkg ${GO_ABI_DIR} --type StrBtc --out ./${GO_ABI_DIR}/strbtc.go
+	abigen --abi ./out/strBTC2.abi.json --bin ./out/strBTC2.bin --pkg ${GO_ABI_DIR} --type StrBtc2 --out ./${GO_ABI_DIR}/strbtc2.go
 	abigen --abi ./out/wstrBTC.abi.json --bin ./out/wstrBTC.bin --pkg ${GO_ABI_DIR} --type WStrBtc --out ./${GO_ABI_DIR}/wstrbtc.go
 	abigen --abi ./out/UserActivator.abi.json --bin ./out/UserActivator.bin --pkg ${GO_ABI_DIR} --type UserActivator --out ./${GO_ABI_DIR}/user_activator.go
 	abigen --abi ./out/ValidatorRegistry.abi.json --bin ./out/ValidatorRegistry.bin --pkg ${GO_ABI_DIR} --type ValidatorRegistry --out ./${GO_ABI_DIR}/validator_registry.go
