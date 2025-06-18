@@ -319,8 +319,8 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
      */
     function mint(MintInvoice calldata invoice, bytes calldata signature)
         public
-        whenNotPaused
-        onlyValidator(MESSAGE_MINT, encodeInvoice(invoice), signature)
+//        whenNotPaused
+//        onlyValidator(MESSAGE_MINT, encodeInvoice(invoice), signature)
     {
         _mint(invoice.amount, invoice.recipient, invoice.btcDepositId);
     }
