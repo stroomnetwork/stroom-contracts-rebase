@@ -13,6 +13,3 @@
 [submodule "lib/safe-contracts"]
 	path = lib/safe-contracts
 	url = https://github.com/safe-global/safe-contracts
-[submodule "lib/blockchain-tools"]
-	path = lib/blockchain-tools
-	url = https://github.com/stroomnetwork/blockchain-tools
