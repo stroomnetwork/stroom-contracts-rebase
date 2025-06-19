@@ -103,6 +103,52 @@ The above goal produces `abistroom/strbtc.go` with Go bindings for the compiled 
 Changing the contract should cause releasing a new version by publishing a new tag.
 Tag should be a valid [Semantic Versioning](https://semver.org/) number. 
 
+
+## Contract Deployment
+
+### Local Deployment
+
+To deploy contracts to a local network (e.g., Anvil):
+
+```shell
+make deploy-local
+```
+
+- Uses the local RPC (http://localhost:8545)
+- Requires a private key in `.env` (`PRIVATE_KEY_LOCAL`)
+- Make sure your local node is running (e.g., with `anvil`) before deploying
+
+To start a local Ethereum node using Anvil run this command in a separate terminal window:
+
+```shell
+anvil
+```
+
+### Sepolia Deployment
+
+To deploy contracts to the Sepolia testnet:
+
+```shell
+make deploy-sepolia
+```
+
+- Uses environment variables from `.env`:
+  - `SEPOLIA_RPC_URL` — Sepolia RPC endpoint
+  - `PRIVATE_KEY` — deployer's private key
+  - `ETHERSCAN_API_KEY` — for contract verification
+- Contracts are automatically verified on Etherscan
+
+### Additional Scripts
+
+- Deploy Timelock:
+  ```shell
+  make script-deploy-timelock
+  ```
+- Initialize seed (joint pubkey, taproot):
+  ```shell
+  make script-set-seed-sepolia
+  ```
+  
 ## Foundry
 
 **Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
