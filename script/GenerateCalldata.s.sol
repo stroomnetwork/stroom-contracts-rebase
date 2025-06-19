@@ -17,8 +17,8 @@ contract GenerateUniversalCalldataScript is Script {
     // then run:
     // forge script script/GenerateCalldata.s.sol
 
-    bytes32 public PREDECESSOR = bytes32(0); // this is the operation ID of another operation that MUST be performed before
-    bytes32 public SALT = bytes32(0); // this is a random value that is used to make the operation ID unique
+    bytes32 public PREDECESSOR = vm.envOr("PREDECESSOR", bytes32(0)); // this is the operation ID of another operation that MUST be performed before
+    bytes32 public SALT = vm.envOr("SALT", bytes32(0)); // this is a random value that is used to make the operation ID unique
 
     function run() public view {
         bytes memory functionCalldata = _generateFunctionCalldata();
