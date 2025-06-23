@@ -48,6 +48,8 @@ export-abi: build ## Export contracts ABI and bytecode for strBTC, wstrBTC
 	cat ./out/ValidatorRegistry.sol/ValidatorRegistry.json | jq -r '.bytecode.object' | sed 's/0x//' > ./out/ValidatorRegistry.bin
 	cat ./out/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json | jq -r '.abi' > ./out/TransparentUpgradeableProxy.abi.json
 	cat ./out/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json | jq -r '.bytecode.object' | sed 's/0x//' > ./out/TransparentUpgradeableProxy.bin
+	cat ./out/BitcoinUtilsWrapper.sol/BitcoinUtilsWrapper.json | jq -r '.abi' > ./out/BitcoinUtilsWrapper.abi.json
+	cat ./out/BitcoinUtilsWrapper.sol/BitcoinUtilsWrapper.json | jq -r '.bytecode.object' | sed 's/0x//' > ./out/BitcoinUtilsWrapper.bin
 
 ## Go Bindings
 .PHONY: go-gen
@@ -57,6 +59,7 @@ go-gen: build export-abi ## Generate Go bindings
 	abigen --abi ./out/UserActivator.abi.json --bin ./out/UserActivator.bin --lang go --pkg ${GO_ABI_DIR} --type UserActivator --out ./${GO_ABI_DIR}/user_activator.go
 	abigen --abi ./out/ValidatorRegistry.abi.json --bin ./out/ValidatorRegistry.bin --lang go --pkg ${GO_ABI_DIR} --type ValidatorRegistry --out ./${GO_ABI_DIR}/validator_registry.go
 	abigen --abi ./out/TransparentUpgradeableProxy.abi.json --bin ./out/TransparentUpgradeableProxy.bin --lang go --pkg ${GO_ABI_DIR} --type TransparentUpgradeableProxy --out ./${GO_ABI_DIR}/proxy.go
+	abigen --abi ./out/BitcoinUtilsWrapper.abi.json --bin ./out/BitcoinUtilsWrapper.bin --lang go --pkg ${GO_ABI_DIR} --type BitcoinUtilsWrapper --out ./${GO_ABI_DIR}/bitcoin_utils_wrapper.go
 
 .PHONY: go-gen-test
 go-gen-test: build export-abi ## Verify Go bindings
@@ -66,6 +69,7 @@ go-gen-test: build export-abi ## Verify Go bindings
 	abigen --abi ./out/UserActivator.abi.json --bin ./out/UserActivator.bin --lang go --pkg ${GO_ABI_DIR} --type UserActivator --out ./build/tmp/${GO_ABI_DIR}/user_activator.go
 	abigen --abi ./out/ValidatorRegistry.abi.json --bin ./out/ValidatorRegistry.bin --lang go --pkg ${GO_ABI_DIR} --type ValidatorRegistry --out ./build/tmp/${GO_ABI_DIR}/validator_registry.go
 	abigen --abi ./out/TransparentUpgradeableProxy.abi.json --bin ./out/TransparentUpgradeableProxy.bin --lang go --pkg ${GO_ABI_DIR} --type TransparentUpgradeableProxy --out ./build/tmp/${GO_ABI_DIR}/proxy.go
+	abigen --abi ./out/BitcoinUtilsWrapper.abi.json --bin ./out/BitcoinUtilsWrapper.bin --lang go --pkg ${GO_ABI_DIR} --type BitcoinUtilsWrapper --out ./build/tmp/${GO_ABI_DIR}/bitcoin_utils_wrapper.go
 	go test -v ./${GO_ABI_DIR}
 
 ## Script & Deploy. Uses environment variables that can be specified by '.env' file
