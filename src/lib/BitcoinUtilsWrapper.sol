@@ -11,10 +11,11 @@ import {BitcoinNetworkEncoder} from "blockchain-tools/src/BitcoinNetworkEncoder.
 contract BitcoinUtilsWrapper {
     using BitcoinUtils for BitcoinNetworkEncoder.Network;
 
-    function validateBitcoinAddress(
-        BitcoinNetworkEncoder.Network network,
-        string calldata BTCAddress
-    ) external view returns (bool) {
+    function validateBitcoinAddress(BitcoinNetworkEncoder.Network network, string calldata BTCAddress)
+        external
+        view
+        returns (bool)
+    {
         return network.validateBitcoinAddress(BTCAddress);
     }
 
@@ -45,4 +46,4 @@ contract BitcoinUtilsWrapper {
     function prefixChk(bytes memory prefix) external pure returns (uint256) {
         return BitcoinUtils.prefixChk(prefix);
     }
-} 
+}
