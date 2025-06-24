@@ -23,17 +23,9 @@ contract GenerateUniversalCalldataScript is Script {
     function run() public view {
         bytes memory functionCalldata = _generateFunctionCalldata();
 
-        bytes memory scheduleCalldata = abi.encodeWithSelector(
-            TimelockController.schedule.selector, targetContract, 0, functionCalldata, PREDECESSOR, SALT, delay
-        );
-
-        bytes memory executeCalldata = abi.encodeWithSelector(
-            TimelockController.execute.selector, targetContract, 0, functionCalldata, PREDECESSOR, SALT
-        );
-
         bytes32 operationId = keccak256(abi.encode(targetContract, 0, functionCalldata, PREDECESSOR, SALT));
 
-        _printResults(functionCalldata, scheduleCalldata, executeCalldata, operationId);
+        _printResults(functionCalldata, operationId);
     }
 
     function _generateFunctionCalldata() internal view returns (bytes memory) {
@@ -73,13 +65,15 @@ contract GenerateUniversalCalldataScript is Script {
     function _parseValue(string memory value) internal pure returns (bytes32) {
         value = _trim(value);
 
-        // Handle different types
         if (_startsWith(value, "0x")) {
-            // Address or bytes32
-            return bytes32(vm.parseBytes32(value));
+            if (bytes(value).length == 42) {
+                address addr = vm.parseAddress(value);
+                return bytes32(uint256(uint160(addr)));
+            } else {
+                return vm.parseBytes32(value);
+            }
         }
 
-        // Try to parse as uint256
         return bytes32(vm.parseUint(value));
     }
 
@@ -163,31 +157,21 @@ contract GenerateUniversalCalldataScript is Script {
 
     function _printResults(
         bytes memory functionCalldata,
-        bytes memory scheduleCalldata,
-        bytes memory executeCalldata,
         bytes32 operationId
     ) internal view {
         console.log("OPERATION SUMMARY:");
-        console.log("--------------------------------------------------");
-        console.log("Target Contract:", targetContract);
+        console.log("Timelock Address:", timelock);
+        console.log("");
         console.log("Function Signature:", functionSignature);
         console.log("Function Parameters:", functionParams);
-        console.log("Timelock Address:", timelock);
-        console.log("Delay:", delay, "seconds");
-        console.log();
-
-        console.log("COPY-PASTE READY VALUES:");
-        console.log("--------------------------------------------------");
-        console.log("Function Calldata:");
-        console.log(vm.toString(functionCalldata));
-        console.log();
-        console.log("Schedule Calldata:");
-        console.log(vm.toString(scheduleCalldata));
-        console.log();
-        console.log("Execute Calldata:");
-        console.log(vm.toString(executeCalldata));
-        console.log();
-        console.log("Operation ID:");
-        console.log(vm.toString(operationId));
+        console.log("");
+        console.log("Target:", targetContract);
+        console.log("Value: 0");
+        console.log("Data:", vm.toString(functionCalldata));
+        console.log("Predecessor:", vm.toString(PREDECESSOR));
+        console.log("Salt:", vm.toString(SALT));
+        console.log("Delay:", delay);
+        console.log("");
+        console.log("Operation ID: ", vm.toString(operationId));
     }
 }
