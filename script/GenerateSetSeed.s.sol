@@ -11,10 +11,10 @@ import {BitcoinNetworkEncoder} from "../lib/blockchain-tools/src/BitcoinNetworkE
 contract GenerateSetSeedCalldataScript is Script {
     address public timelock = vm.envAddress("APP_ETH_TIMELOCK_ADDRESS");
     uint256 public delay = vm.envUint("TIMELOCK_DELAY");
-    
+
     address public userActivator = vm.envAddress("APP_ETH_USER_ACTIVATOR_ADDRESS");
     address public validatorRegistry = vm.envAddress("APP_ETH_VALIDATOR_REGISTRY_ADDRESS");
-    
+
     string public taprootAddress1 = vm.envString("TAPROOT_ADDRESS1");
     string public taprootAddress2 = vm.envString("TAPROOT_ADDRESS2");
     bytes32 public jointPublicKey = vm.envBytes32("JOINT_PUBLIC_KEY");
@@ -22,29 +22,24 @@ contract GenerateSetSeedCalldataScript is Script {
 
     function run() public view {
         console.log("=== GENERATION OF CALLDATA FOR SETSEED OPERATIONS ===\n");
-        
+
         _generateSetSeedCalldata();
-        
+
         console.log("\n=== GENERATION OF CALLDATA FOR SETJOINTKEY OPERATIONS ===\n");
-        
+
         _generateSetJointKeyCalldata();
     }
 
     function _generateSetSeedCalldata() internal view {
         BitcoinNetworkEncoder.Network _network = BitcoinNetworkEncoder.Network(network);
-        
+
         bytes memory functionCalldata = abi.encodeWithSelector(
-            BTCDepositAddressDeriver.setSeed.selector,
-            taprootAddress1,
-            taprootAddress2,
-            _network
+            BTCDepositAddressDeriver.setSeed.selector, taprootAddress1, taprootAddress2, _network
         );
 
         bytes32 salt = keccak256("SetSeed2025");
 
-        bytes32 operationId = keccak256(abi.encode(
-            userActivator, 0, functionCalldata, bytes32(0), salt
-        ));
+        bytes32 operationId = keccak256(abi.encode(userActivator, 0, functionCalldata, bytes32(0), salt));
 
         console.log("Function: setSeed(string,string,uint8)");
         console.log("Params:");
@@ -63,16 +58,12 @@ contract GenerateSetSeedCalldataScript is Script {
     }
 
     function _generateSetJointKeyCalldata() internal view {
-        bytes memory functionCalldata = abi.encodeWithSelector(
-            ValidatorRegistry.setJointPublicKey.selector,
-            jointPublicKey
-        );
+        bytes memory functionCalldata =
+            abi.encodeWithSelector(ValidatorRegistry.setJointPublicKey.selector, jointPublicKey);
 
         bytes32 salt = keccak256("SetJointKey2025");
-        
-        bytes32 operationId = keccak256(abi.encode(
-            validatorRegistry, 0, functionCalldata, bytes32(0), salt
-        ));
+
+        bytes32 operationId = keccak256(abi.encode(validatorRegistry, 0, functionCalldata, bytes32(0), salt));
 
         console.log("Function: setJointPublicKey(bytes32)");
         console.log("Params:");

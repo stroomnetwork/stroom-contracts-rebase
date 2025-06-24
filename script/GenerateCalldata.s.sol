@@ -155,10 +155,7 @@ contract GenerateUniversalCalldataScript is Script {
         return true;
     }
 
-    function _printResults(
-        bytes memory functionCalldata,
-        bytes32 operationId
-    ) internal view {
+    function _printResults(bytes memory functionCalldata, bytes32 operationId) internal view {
         console.log("OPERATION SUMMARY:");
         console.log("Timelock Address:", timelock);
         console.log("");
