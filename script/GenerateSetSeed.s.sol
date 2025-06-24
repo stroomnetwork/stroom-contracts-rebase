@@ -20,14 +20,13 @@ contract GenerateSetSeedCalldataScript is Script {
     bytes32 public jointPublicKey = vm.envBytes32("JOINT_PUBLIC_KEY");
     uint8 public network = uint8(vm.envUint("BITCOIN_NETWORK"));
 
-
     function run() public view {
         console.log("=== GENERATION OF CALLDATA FOR SETSEED OPERATIONS ===\n");
 
         bytes memory setSeedCalldata = abi.encodeWithSelector(
-            BTCDepositAddressDeriver.setSeed.selector, 
-            taprootAddress1, 
-            taprootAddress2, 
+            BTCDepositAddressDeriver.setSeed.selector,
+            taprootAddress1,
+            taprootAddress2,
             BitcoinNetworkEncoder.Network(network)
         );
 
@@ -37,18 +36,22 @@ contract GenerateSetSeedCalldataScript is Script {
             setSeedCalldata,
             keccak256("SetSeed2025"),
             string.concat(
-                "\n  taprootAddress1: ", taprootAddress1, "\n",
-                "  taprootAddress2: ", taprootAddress2, "\n",
-                "  network: ", vm.toString(network), "\n"
+                "\n  taprootAddress1: ",
+                taprootAddress1,
+                "\n",
+                "  taprootAddress2: ",
+                taprootAddress2,
+                "\n",
+                "  network: ",
+                vm.toString(network),
+                "\n"
             )
         );
 
         console.log("\n=== GENERATION OF CALLDATA FOR SETJOINTKEY OPERATIONS ===\n");
 
-        bytes memory setJointKeyCalldata = abi.encodeWithSelector(
-            ValidatorRegistry.setJointPublicKey.selector, 
-            jointPublicKey
-        );
+        bytes memory setJointKeyCalldata =
+            abi.encodeWithSelector(ValidatorRegistry.setJointPublicKey.selector, jointPublicKey);
 
         _printCalldataInfo(
             "setJointPublicKey(bytes32)",
