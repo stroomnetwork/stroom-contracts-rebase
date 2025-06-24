@@ -79,6 +79,11 @@ deploy-sepolia: export BITCOIN_NETWORK=1
 deploy-sepolia: ## Deploy contracts to Sepolia
 	forge script script/Deploy.s.sol:DeployScript --rpc-url ${SEPOLIA_RPC_URL} --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}
 
+.PHONY: deploy-mainnet
+deploy-mainnet: export BITCOIN_NETWORK=0
+deploy-mainnet: ## Deploy contracts to Mainnet
+	forge script script/Deploy.s.sol:DeployScript --rpc-url ${MAINNET_RPC_URL} --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}
+
 .PHONY: verify-proxy-admin
 verify-proxy-admin: ## Verify proxy contract address
 	forge verify-contract --compiler-version 0.8.27 --constructor-args $(cast abi-encode "constructor(address)" ${OWNER_ADDRESS}) --etherscan-api-key ${ETHERSCAN_API_KEY} ${PROXY_ADMIN_ADDRESS} ProxyAdmin --rpc-url ${SEPOLIA_RPC_URL}
