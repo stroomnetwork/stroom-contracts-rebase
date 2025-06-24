@@ -50,8 +50,8 @@ contract CreateStrBTCWBTCPoolScript is Script {
 
     uint24 constant FEE = 500;
 
-    int24 constant TICK_LOWER = -500; // ≈ 0.95
-    int24 constant TICK_UPPER = 500; // ≈ 1.05
+    int24 constant TICK_LOWER = -100; // ≈ 0.99
+    int24 constant TICK_UPPER = 100; // ≈ 1.01
 
     function run() external {
         vm.startBroadcast();
@@ -108,8 +108,8 @@ contract CreateStrBTCWBTCPoolScript is Script {
             tickUpper: TICK_UPPER,
             amount0Desired: amount0Desired,
             amount1Desired: amount1Desired,
-            amount0Min: amount0Desired * 95 / 100, // 5% slippage
-            amount1Min: amount1Desired * 95 / 100, // 5% slippage
+            amount0Min: amount0Desired * 995 / 1000, // 0.5% slippage
+            amount1Min: amount1Desired * 995 / 1000, // 0.5% slippage
             recipient: msg.sender,
             deadline: block.timestamp + 300
         });

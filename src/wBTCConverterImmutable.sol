@@ -19,7 +19,7 @@ contract WBTCConverterImmutable {
 
     IStrBTC public immutable strbtc;
     IERC20 public immutable wbtc;
-    address public immutable feeWithdrawer;
+    address public immutable withdrawer;
     uint256 public immutable mintingLimit;
 
     // Incoming exchange rate (WBTC -> strBTC)
@@ -40,7 +40,7 @@ contract WBTCConverterImmutable {
     event MintingLimitUpdated(uint256 newLimit, address updater);
 
     modifier onlyWithdrawer() {
-        if (msg.sender != feeWithdrawer) revert NotWithdrawer();
+        if (msg.sender != withdrawer) revert NotWithdrawer();
         _;
     }
 
@@ -53,7 +53,7 @@ contract WBTCConverterImmutable {
         wbtc = IERC20(_wbtc);
         strbtc = IStrBTC(_strbtc);
 
-        feeWithdrawer = _withdrawer;
+        withdrawer = _withdrawer;
 
         incomingRateNumerator = 999;
         incomingRateDenominator = 1000;
