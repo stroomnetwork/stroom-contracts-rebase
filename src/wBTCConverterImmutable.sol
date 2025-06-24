@@ -85,14 +85,12 @@ contract WBTCConverterImmutable {
 
         uint256 strbtcAmount = (wbtcAmount * incomingRateNumerator) / incomingRateDenominator;
         if (strbtcAmount == 0) revert ConversionResultedInZeroTokens();
-
         if (currentlyMinted() + strbtcAmount > mintingLimit) revert MintingLimitExceeded();
 
-        wbtc.transferFrom(msg.sender, address(this), wbtcAmount);
-
-        strbtc.converterMint(msg.sender, strbtcAmount);
-
         totalMinted += strbtcAmount;
+
+        wbtc.transferFrom(msg.sender, address(this), wbtcAmount);
+        strbtc.converterMint(msg.sender, strbtcAmount);
 
         emit WBTCConverted(msg.sender, wbtcAmount, strbtcAmount);
 
@@ -109,15 +107,12 @@ contract WBTCConverterImmutable {
 
         uint256 wbtcAmount = (strbtcAmount * outgoingRateDenominator) / outgoingRateNumerator;
         if (wbtcAmount == 0) revert ConversionResultedInZeroTokens();
-
         if (wbtc.balanceOf(address(this)) < wbtcAmount) revert InsufficientWBTCBalance();
-
-        strbtc.transferFrom(msg.sender, address(this), strbtcAmount);
-
-        strbtc.converterBurn(address(this), strbtcAmount);
 
         totalBurned += strbtcAmount;
 
+        strbtc.transferFrom(msg.sender, address(this), strbtcAmount);
+        strbtc.converterBurn(address(this), strbtcAmount);
         wbtc.transfer(msg.sender, wbtcAmount);
 
         emit StrBTCConverted(msg.sender, strbtcAmount, wbtcAmount);
