@@ -5,6 +5,8 @@ import "forge-std/Test.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ERC1967Utils} from "openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import {BitcoinNetworkEncoder} from "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 import "../src/strBTC.sol";
 import "../src/wstrBTC.sol";
@@ -57,27 +59,19 @@ contract WstrBTCTest is Test {
         strBTCContract.mint(invoice, signature);
     }
 
-    function testFuzzWrapCorrectAmountMinted(uint256 strBTCAmount) public {
+    function testFuzzDepositCorrectAmountMinted(uint256 strBTCAmount) public {
         uint256 initialStrBTCBalance = strBTCContract.balanceOf(alice);
         uint256 initialWstrBTCBalance = wstrBTCContract.balanceOf(alice);
 
         vm.assume(strBTCAmount > 0 && strBTCAmount <= initialStrBTCBalance);
 
-        uint256 strBTCBalanceBefore = strBTCContract.balanceOf(address(wstrBTCContract));
-        uint256 wstrBTCSupplyBefore = wstrBTCContract.totalSupply();
-
-        uint256 expectedWstrBTC;
-        if (wstrBTCSupplyBefore == 0 || strBTCBalanceBefore == 0) {
-            expectedWstrBTC = strBTCAmount;
-        } else {
-            expectedWstrBTC = (strBTCAmount * wstrBTCSupplyBefore) / strBTCBalanceBefore;
-        }
+        uint256 expectedWstrBTC = wstrBTCContract.previewDeposit(strBTCAmount);
 
         vm.prank(alice);
         strBTCContract.approve(address(wstrBTCContract), strBTCAmount);
 
         vm.prank(alice);
-        uint256 mintedWstrBTC = wstrBTCContract.wrap(strBTCAmount);
+        uint256 mintedWstrBTC = wstrBTCContract.deposit(strBTCAmount, alice);
 
         assertEq(mintedWstrBTC, expectedWstrBTC, "Incorrect amount of wstrBTC minted");
 
@@ -90,27 +84,25 @@ contract WstrBTCTest is Test {
         );
 
         uint256 finalContractStrBTCBalance = strBTCContract.balanceOf(address(wstrBTCContract));
-        assertEq(
-            finalContractStrBTCBalance,
-            strBTCBalanceBefore + strBTCAmount,
-            "strBTC balance of wstrBTC contract incorrect"
-        );
+        assertEq(finalContractStrBTCBalance, strBTCAmount, "strBTC balance of wstrBTC contract incorrect");
     }
 
-    function testWrapZeroAmountReverts() public {
+    function testDepositZeroAmountSucceeds() public {
         uint256 strBTCAmount = 0;
 
         vm.prank(alice);
         strBTCContract.approve(address(wstrBTCContract), strBTCAmount);
 
         vm.prank(alice);
-        vm.expectRevert(wstrBTC.CannotWrapZero.selector);
-        wstrBTCContract.wrap(strBTCAmount);
+        uint256 shares = wstrBTCContract.deposit(strBTCAmount, alice);
+
+        assertEq(shares, 0, "Deposit of 0 assets should return 0 shares");
+        assertEq(wstrBTCContract.balanceOf(alice), 0, "Alice should have 0 wstrBTC");
     }
 
-    function testWrapInsufficientApproval() public {
+    function testDepositInsufficientApproval() public {
         uint256 approveAmount = 5 * BTC;
-        uint256 wrapAmount = 7 * BTC;
+        uint256 depositAmount = 7 * BTC;
 
         vm.prank(alice);
         strBTCContract.approve(address(wstrBTCContract), approveAmount);
@@ -121,66 +113,64 @@ contract WstrBTCTest is Test {
         vm.prank(alice);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IERC20Errors.ERC20InsufficientAllowance.selector, address(wstrBTCContract), allowance, wrapAmount
+                IERC20Errors.ERC20InsufficientAllowance.selector, address(wstrBTCContract), allowance, depositAmount
             )
         );
-        wstrBTCContract.wrap(wrapAmount);
+        wstrBTCContract.deposit(depositAmount, alice);
     }
 
-    function testWrapInsufficientBalance() public {
-        uint256 wrapAmount = INITIAL_SUPPLY + 1 * BTC;
+    function testDepositInsufficientBalance() public {
+        uint256 depositAmount = INITIAL_SUPPLY + 1 * BTC;
 
         uint256 aliceBalance = strBTCContract.balanceOf(alice);
         assertEq(aliceBalance, INITIAL_SUPPLY, "Alice initial balance incorrect");
 
         vm.prank(alice);
-        strBTCContract.approve(address(wstrBTCContract), wrapAmount);
+        strBTCContract.approve(address(wstrBTCContract), depositAmount);
 
         vm.prank(alice);
         vm.expectRevert(strBTC.InsufficientBalance.selector);
-        wstrBTCContract.wrap(wrapAmount);
+        wstrBTCContract.deposit(depositAmount, alice);
     }
 
-    function testUnwrapSuccess() public {
-        uint256 wrapAmount = 5 * BTC;
+    function testRedeemSuccess() public {
+        uint256 depositAmount = 5 * BTC;
 
         vm.prank(alice);
-        strBTCContract.approve(address(wstrBTCContract), wrapAmount);
+        strBTCContract.approve(address(wstrBTCContract), depositAmount);
 
         vm.prank(alice);
-        uint256 wstrBTCMinted = wstrBTCContract.wrap(wrapAmount);
+        uint256 wstrBTCMinted = wstrBTCContract.deposit(depositAmount, alice);
 
         uint256 aliceWstrBTCBalance = wstrBTCContract.balanceOf(alice);
-        assertEq(aliceWstrBTCBalance, wstrBTCMinted, "Alice's wstrBTC balance incorrect after wrap");
+        assertEq(aliceWstrBTCBalance, wstrBTCMinted, "Alice's wstrBTC balance incorrect after deposit");
 
         uint256 strBTCBalanceOfWrapper = strBTCContract.balanceOf(address(wstrBTCContract));
-        assertEq(strBTCBalanceOfWrapper, wrapAmount, "wstrBTC contract strBTC balance incorrect");
+        assertEq(strBTCBalanceOfWrapper, depositAmount, "wstrBTC contract strBTC balance incorrect");
 
         vm.prank(alice);
-        uint256 strBTCUnwrapped = wstrBTCContract.unwrap(wstrBTCMinted);
+        uint256 strBTCRedeemed = wstrBTCContract.redeem(wstrBTCMinted, alice, alice);
 
-        assertEq(strBTCUnwrapped, wrapAmount, "Unwrapped strBTC amount incorrect");
+        assertEq(strBTCRedeemed, depositAmount, "Redeemed strBTC amount incorrect");
 
         aliceWstrBTCBalance = wstrBTCContract.balanceOf(alice);
-        assertEq(aliceWstrBTCBalance, 0, "Alice's wstrBTC balance should be zero after unwrap");
+        assertEq(aliceWstrBTCBalance, 0, "Alice's wstrBTC balance should be zero after redeem");
 
         uint256 aliceStrBTCBalance = strBTCContract.balanceOf(alice);
-        assertEq(aliceStrBTCBalance, INITIAL_SUPPLY, "Alice's strBTC balance incorrect after unwrap");
+        assertEq(aliceStrBTCBalance, INITIAL_SUPPLY, "Alice's strBTC balance incorrect after redeem");
     }
 
-    function testUnwrapAfterMintRewards() public {
-        uint256 initialWrapAmount = 7 * BTC + 101;
-
-        uint256 totalSupplyBeforeRewards = strBTCContract.totalSupply();
+    function testRedeemAfterMintRewards() public {
+        uint256 initialDepositAmount = 7 * BTC + 101;
 
         vm.prank(alice);
-        strBTCContract.approve(address(wstrBTCContract), initialWrapAmount);
+        strBTCContract.approve(address(wstrBTCContract), initialDepositAmount);
 
         vm.prank(alice);
-        uint256 wstrBTCMinted = wstrBTCContract.wrap(initialWrapAmount);
+        uint256 wstrBTCMinted = wstrBTCContract.deposit(initialDepositAmount, alice);
 
         uint256 aliceWstrBTCBalance = wstrBTCContract.balanceOf(alice);
-        assertEq(aliceWstrBTCBalance, wstrBTCMinted, "Alice's wstrBTC balance incorrect after wrap");
+        assertEq(aliceWstrBTCBalance, wstrBTCMinted, "Alice's wstrBTC balance incorrect after deposit");
 
         uint256 rewardAmount = 5 * BTC;
 
@@ -195,71 +185,66 @@ contract WstrBTCTest is Test {
 
         assertEq(totalSupplyAfterRewards, INITIAL_SUPPLY + rewardAmount, "Total supply incorrect after rewards");
 
-        uint256 expectedStrBTCFromUnwrap = (initialWrapAmount * totalSupplyAfterRewards) / totalSupplyBeforeRewards;
+        uint256 expectedStrBTCFromRedeem = wstrBTCContract.previewRedeem(wstrBTCMinted);
 
         vm.prank(alice);
-        uint256 strBTCUnwrapped = wstrBTCContract.unwrap(wstrBTCMinted);
+        uint256 strBTCRedeemed = wstrBTCContract.redeem(wstrBTCMinted, alice, alice);
 
-        assertEq(strBTCUnwrapped, expectedStrBTCFromUnwrap, "Unwrapped strBTC amount incorrect after rewards");
-
-        uint256 strBTCSharesOfWrapper = strBTCContract.getShares(address(wstrBTCContract));
-        assertEq(strBTCSharesOfWrapper, 1, "Shares of wstrBTC contract should be 1");
+        assertEq(strBTCRedeemed, expectedStrBTCFromRedeem, "Redeemed strBTC amount incorrect after rewards");
 
         uint256 strBTCBalanceOfWrapper = strBTCContract.balanceOf(address(wstrBTCContract));
+        assertLe(strBTCBalanceOfWrapper, 2, "strBTC balance of contract wstrBTC should be at most 2 sat");
+
         uint256 aliceFinalStrBTCBalance = strBTCContract.balanceOf(alice);
-
-        // we can loose at most 1 sat due to rounding errors, which must stay inside wstrBTC contract
-        assertLe(strBTCBalanceOfWrapper, 1, "strBTC balace of contract wstrBTC should be at most 1 sat");
-
         uint256 expectedFinalBalance = INITIAL_SUPPLY + rewardAmount - strBTCBalanceOfWrapper;
 
-        // 1 satoshi is lost due to rounding errors, since 1 share is left in wstrBTC contract
-        assertLe(expectedFinalBalance - aliceFinalStrBTCBalance, 1, "Alice's strBTC balance incorrect after unwrap");
+        assertLe(expectedFinalBalance - aliceFinalStrBTCBalance, 2, "Alice's strBTC balance incorrect after redeem");
 
         uint256 aliceFinalWstrBTCBalance = wstrBTCContract.balanceOf(alice);
-        assertEq(aliceFinalWstrBTCBalance, 0, "Alice's wstrBTC balance should be zero after unwrap");
+        assertEq(aliceFinalWstrBTCBalance, 0, "Alice's wstrBTC balance should be zero after redeem");
     }
 
-    function testUnwrapZeroWstrBTC() public {
+    function testRedeemZeroWstrBTC() public {
         vm.startPrank(alice);
 
         uint256 zeroAmount = 0;
 
-        vm.expectRevert(wstrBTC.CannotUnwrapZero.selector);
-        wstrBTCContract.unwrap(zeroAmount);
+        uint256 assets = wstrBTCContract.redeem(zeroAmount, alice, alice);
+
+        assertEq(assets, 0, "Redeem of 0 shares should return 0 assets");
 
         vm.stopPrank();
     }
 
-    function testUnwrapInsufficientBalance() public {
+    function testRedeemInsufficientBalance() public {
         vm.startPrank(bob);
 
         uint256 insufficientAmount = 1 * 10 ** 18;
 
-        vm.expectRevert(wstrBTC.NoWstrBTCSupply.selector);
-        wstrBTCContract.unwrap(insufficientAmount);
+        vm.expectRevert(); // ERC20 insufficient balance error
+        wstrBTCContract.redeem(insufficientAmount, bob, bob);
 
         vm.stopPrank();
     }
 
-    function testUnwrapCallsTransfer() public {
+    function testRedeemCallsTransfer() public {
         uint256 initialStrBTCAmount = 5 * BTC;
         vm.startPrank(alice);
         strBTCContract.approve(address(wstrBTCContract), initialStrBTCAmount);
-        uint256 wstrBTCMinted = wstrBTCContract.wrap(initialStrBTCAmount);
+        uint256 wstrBTCMinted = wstrBTCContract.deposit(initialStrBTCAmount, alice);
 
         uint256 aliceWstrBTCBalance = wstrBTCContract.balanceOf(alice);
-        assertEq(aliceWstrBTCBalance, wstrBTCMinted, "Alice's wstrBTC balance incorrect after wrap");
+        assertEq(aliceWstrBTCBalance, wstrBTCMinted, "Alice's wstrBTC balance incorrect after deposit");
 
         vm.expectCall(
             address(strBTCContract),
             abi.encodeWithSelector(strBTCContract.transfer.selector, alice, initialStrBTCAmount)
         );
-        wstrBTCContract.unwrap(wstrBTCMinted);
+        wstrBTCContract.redeem(wstrBTCMinted, alice, alice);
         vm.stopPrank();
     }
 
-    function testFuzzWrap(uint256 strBTCAmount) public {
+    function testFuzzDeposit(uint256 strBTCAmount) public {
         uint256 initialAliceStrBTCAmount = strBTCContract.balanceOf(alice);
         uint256 initialAliceWstrBTCBalance = wstrBTCContract.balanceOf(alice);
         uint256 initialContractStrBTCAmount = strBTCContract.balanceOf(address(wstrBTCContract));
@@ -270,7 +255,7 @@ contract WstrBTCTest is Test {
         strBTCContract.approve(address(wstrBTCContract), strBTCAmount);
 
         vm.prank(alice);
-        uint256 wstrBTCMinted = wstrBTCContract.wrap(strBTCAmount);
+        uint256 wstrBTCMinted = wstrBTCContract.deposit(strBTCAmount, alice);
 
         assertEq(
             strBTCContract.balanceOf(alice), initialAliceStrBTCAmount - strBTCAmount, "Alice's strBTC balance incorrect"
@@ -287,23 +272,23 @@ contract WstrBTCTest is Test {
         );
     }
 
-    function testFuzzUnwrap(uint256 wstrBTCAmount) public {
+    function testFuzzRedeem(uint256 wstrBTCAmount) public {
         uint256 initialAliceStrBTCAmount = strBTCContract.balanceOf(alice);
 
         vm.startPrank(alice);
         strBTCContract.approve(address(wstrBTCContract), initialAliceStrBTCAmount);
 
-        uint256 wstrBTCMinted = wstrBTCContract.wrap(initialAliceStrBTCAmount);
+        uint256 wstrBTCMinted = wstrBTCContract.deposit(initialAliceStrBTCAmount, alice);
 
         vm.assume(wstrBTCAmount > 0 && wstrBTCAmount <= wstrBTCMinted);
 
         uint256 initialAliceWstrBTCBalance = wstrBTCContract.balanceOf(alice);
         uint256 initialContractStrBTCAmount = strBTCContract.balanceOf(address(wstrBTCContract));
 
-        uint256 strBTCUnwrapped = wstrBTCContract.unwrap(wstrBTCAmount);
+        uint256 strBTCRedeemed = wstrBTCContract.redeem(wstrBTCAmount, alice, alice);
         vm.stopPrank();
 
-        assertEq(strBTCContract.balanceOf(alice), strBTCUnwrapped, "Alice's strBTC balance incorrect");
+        assertEq(strBTCContract.balanceOf(alice), strBTCRedeemed, "Alice's strBTC balance incorrect");
         assertEq(
             wstrBTCContract.balanceOf(alice),
             initialAliceWstrBTCBalance - wstrBTCAmount,
@@ -311,27 +296,29 @@ contract WstrBTCTest is Test {
         );
         assertEq(
             strBTCContract.balanceOf(address(wstrBTCContract)),
-            initialContractStrBTCAmount - strBTCUnwrapped,
+            initialContractStrBTCAmount - strBTCRedeemed,
             "wstrBTC contract's strBTC balance incorrect"
         );
     }
 
-    function testIntegrationWrapUnwrapWithRebase(uint256 wrapAmount) public {
+    function testIntegrationDepositRedeemWithRebase(uint256 depositAmount) public {
         uint256 initialStrBTC = strBTCContract.balanceOf(alice);
-        vm.assume(wrapAmount > 0 && wrapAmount < initialStrBTC);
+        vm.assume(depositAmount > 0 && depositAmount < initialStrBTC);
 
         vm.prank(alice);
-        strBTCContract.approve(address(wstrBTCContract), wrapAmount);
+        strBTCContract.approve(address(wstrBTCContract), depositAmount);
 
         vm.prank(alice);
-        uint256 wstrBTCMinted = wstrBTCContract.wrap(wrapAmount);
+        uint256 wstrBTCMinted = wstrBTCContract.deposit(depositAmount, alice);
 
         uint256 initialAliceStrBTCBalance = strBTCContract.balanceOf(alice);
         uint256 initialAliceWstrBTCBalance = wstrBTCContract.balanceOf(alice);
         uint256 initialTotalPooledStrBTC = strBTCContract.totalSupply();
 
-        assertEq(initialAliceStrBTCBalance, initialStrBTC - wrapAmount, "Alice's strBTC balance after wrap incorrect");
-        assertEq(initialAliceWstrBTCBalance, wstrBTCMinted, "Alice's wstrBTC balance after wrap incorrect");
+        assertEq(
+            initialAliceStrBTCBalance, initialStrBTC - depositAmount, "Alice's strBTC balance after deposit incorrect"
+        );
+        assertEq(initialAliceWstrBTCBalance, wstrBTCMinted, "Alice's wstrBTC balance after deposit incorrect");
 
         uint256 rewardAmount = 5 * BTC;
         bytes memory validSignature =
@@ -352,30 +339,24 @@ contract WstrBTCTest is Test {
         );
 
         vm.prank(alice);
-        uint256 strBTCUnwrapped = wstrBTCContract.unwrap(wstrBTCMinted);
+        wstrBTCContract.redeem(wstrBTCMinted, alice, alice);
 
-        uint256 aliceStrBTCBalanceAfterUnwrap = strBTCContract.balanceOf(alice);
+        uint256 aliceStrBTCBalanceAfterRedeem = strBTCContract.balanceOf(alice);
         uint256 finalAliceWstrBTCBalance = wstrBTCContract.balanceOf(alice);
 
-        assertEq(finalAliceWstrBTCBalance, 0, "Alice's wstrBTC balance should be zero after unwrap");
+        assertEq(finalAliceWstrBTCBalance, 0, "Alice's wstrBTC balance should be zero after redeem");
 
         uint256 expectedBalance = initialStrBTC + rewardAmount;
 
         assertApproxEqAbs(
-            aliceStrBTCBalanceAfterUnwrap,
+            aliceStrBTCBalanceAfterRedeem,
             expectedBalance,
             10,
-            "Alice's strBTC balance after unwrap should include rewards"
-        );
-
-        assertEq(
-            strBTCUnwrapped,
-            (wstrBTCMinted * totalPooledStrBTCAfterRebase) / strBTCContract.totalShares(),
-            "Unwrapped strBTC amount is incorrect"
+            "Alice's strBTC balance after redeem should include rewards"
         );
     }
 
-    function testFuzzIntegrationWrapUnwrapWithRebaseForTwoUsers(uint256 aliceWrapAmount, uint256 bobWrapAmount)
+    function testFuzzIntegrationDepositRedeemWithRebaseForTwoUsers(uint256 aliceDepositAmount, uint256 bobDepositAmount)
         public
     {
         strBTC.MintInvoice memory invoice =
@@ -387,20 +368,20 @@ contract WstrBTCTest is Test {
 
         uint256 totalPooledStrBTCBeforeRebase = strBTCContract.totalSupply();
 
-        vm.assume(aliceWrapAmount > 0 && aliceWrapAmount <= strBTCContract.balanceOf(alice));
-        vm.assume(bobWrapAmount > 0 && bobWrapAmount <= strBTCContract.balanceOf(bob));
+        vm.assume(aliceDepositAmount > 0 && aliceDepositAmount <= strBTCContract.balanceOf(alice));
+        vm.assume(bobDepositAmount > 0 && bobDepositAmount <= strBTCContract.balanceOf(bob));
 
         vm.prank(alice);
-        strBTCContract.approve(address(wstrBTCContract), aliceWrapAmount);
+        strBTCContract.approve(address(wstrBTCContract), aliceDepositAmount);
 
         vm.prank(bob);
-        strBTCContract.approve(address(wstrBTCContract), bobWrapAmount);
+        strBTCContract.approve(address(wstrBTCContract), bobDepositAmount);
 
         vm.prank(alice);
-        uint256 aliceWstrBTCMinted = wstrBTCContract.wrap(aliceWrapAmount);
+        uint256 aliceWstrBTCMinted = wstrBTCContract.deposit(aliceDepositAmount, alice);
 
         vm.prank(bob);
-        uint256 bobWstrBTCMinted = wstrBTCContract.wrap(bobWrapAmount);
+        uint256 bobWstrBTCMinted = wstrBTCContract.deposit(bobDepositAmount, bob);
 
         uint256 rewardAmount = 5 * BTC;
         bytes32 totalSupplyUpdateHash = strBTCContract.getTotalSupplyUpdateHash(0, rewardAmount);
@@ -412,58 +393,26 @@ contract WstrBTCTest is Test {
 
         uint256 totalPooledStrBTCAfterRebase = strBTCContract.totalSupply();
 
-        uint256 expectedAliceUnwrapped =
-            (aliceWrapAmount * totalPooledStrBTCAfterRebase) / totalPooledStrBTCBeforeRebase;
-        uint256 expectedBobUnwrapped = (bobWrapAmount * totalPooledStrBTCAfterRebase) / totalPooledStrBTCBeforeRebase;
+        uint256 expectedAliceRedeemed =
+            (aliceDepositAmount * totalPooledStrBTCAfterRebase) / totalPooledStrBTCBeforeRebase;
+        uint256 expectedBobRedeemed = (bobDepositAmount * totalPooledStrBTCAfterRebase) / totalPooledStrBTCBeforeRebase;
 
         vm.prank(alice);
-        uint256 aliceStrBTCUnwrapped = wstrBTCContract.unwrap(aliceWstrBTCMinted);
+        uint256 aliceStrBTCRedeemed = wstrBTCContract.redeem(aliceWstrBTCMinted, alice, alice);
 
         vm.prank(bob);
-        uint256 bobStrBTCUnwrapped = wstrBTCContract.unwrap(bobWstrBTCMinted);
+        uint256 bobStrBTCRedeemed = wstrBTCContract.redeem(bobWstrBTCMinted, bob, bob);
 
         assertApproxEqAbs(
-            aliceStrBTCUnwrapped, expectedAliceUnwrapped, 3, "Alice's unwrapped strBTC amount incorrect after rebase"
+            aliceStrBTCRedeemed, expectedAliceRedeemed, 3, "Alice's redeemed strBTC amount incorrect after rebase"
         );
 
         assertApproxEqAbs(
-            bobStrBTCUnwrapped, expectedBobUnwrapped, 3, "Bob's unwrapped strBTC amount incorrect after rebase"
+            bobStrBTCRedeemed, expectedBobRedeemed, 3, "Bob's redeemed strBTC amount incorrect after rebase"
         );
 
-        assertEq(wstrBTCContract.balanceOf(alice), 0, "Alice's wstrBTC balance should be zero after unwrap");
-        assertEq(wstrBTCContract.balanceOf(bob), 0, "Bob's wstrBTC balance should be zero after unwrap");
-    }
-
-    function testWrapWithExcessBalance() public {
-        uint256 strBTCAmount = 1 * BTC;
-
-        deal(address(strBTCContract), address(wstrBTCContract), 2000 * BTC);
-
-        uint256 initialStrBTCBalance = strBTCContract.balanceOf(alice);
-        uint256 initialWstrBTCBalance = wstrBTCContract.balanceOf(alice);
-        uint256 contractStrBTCBalance = strBTCContract.balanceOf(address(wstrBTCContract));
-
-        uint256 totalPooledStrBTC = strBTCContract.totalSupply();
-        assertGt(contractStrBTCBalance, totalPooledStrBTC, "Contract balance should exceed total pooled strBTC");
-
-        vm.prank(alice);
-        strBTCContract.approve(address(wstrBTCContract), strBTCAmount);
-
-        vm.prank(alice);
-        wstrBTCContract.wrap(strBTCAmount);
-
-        uint256 finalStrBTCBalance = strBTCContract.balanceOf(alice);
-        uint256 finalWstrBTCBalance = wstrBTCContract.balanceOf(alice);
-
-        assertEq(finalStrBTCBalance, initialStrBTCBalance - strBTCAmount, "Alice's strBTC balance incorrect after wrap");
-        assertGt(finalWstrBTCBalance, initialWstrBTCBalance, "Alice's wstrBTC balance incorrect after wrap");
-
-        uint256 finalContractStrBTCBalance = strBTCContract.balanceOf(address(wstrBTCContract));
-        assertEq(
-            finalContractStrBTCBalance,
-            contractStrBTCBalance + strBTCAmount,
-            "wstrBTC contract's strBTC balance incorrect after wrap"
-        );
+        assertEq(wstrBTCContract.balanceOf(alice), 0, "Alice's wstrBTC balance should be zero after redeem");
+        assertEq(wstrBTCContract.balanceOf(bob), 0, "Bob's wstrBTC balance should be zero after redeem");
     }
 
     function testZeroSupplyEdgeCase() public {
@@ -472,12 +421,6 @@ contract WstrBTCTest is Test {
 
         assertEq(initialWstrBTCTotalSupply, 0, "Initial wstrBTC total supply is not zero");
         assertEq(initialWstrBTCBalance, 0, "Initial wstrBTC balance is not zero");
-
-        vm.expectRevert(wstrBTC.NoWstrBTCSupply.selector);
-        wstrBTCContract.strBTCPerToken(BTC);
-
-        vm.expectRevert(wstrBTC.NoStrBTCBalance.selector);
-        wstrBTCContract.tokensPerStrBTC(BTC);
 
         uint256 strBTCAmount = 1 * BTC;
         strBTC.MintInvoice memory invoice = strBTC.MintInvoice({
@@ -495,62 +438,60 @@ contract WstrBTCTest is Test {
 
         strBTCContract.approve(address(wstrBTCContract), strBTCAmount);
 
-        uint256 wstrBTCMinted = wstrBTCContract.wrap(strBTCAmount);
+        uint256 wstrBTCMinted = wstrBTCContract.deposit(strBTCAmount, address(this));
         assertEq(wstrBTCMinted, strBTCAmount, "Minted wstrBTC should equal strBTC amount");
 
-        uint256 strBTCUnwrapped = wstrBTCContract.unwrap(wstrBTCMinted);
-        assertEq(strBTCUnwrapped, strBTCAmount, "Unwrapped strBTC should equal initial amount");
+        uint256 strBTCRedeemed = wstrBTCContract.redeem(wstrBTCMinted, address(this), address(this));
+        assertEq(strBTCRedeemed, strBTCAmount, "Redeemed strBTC should equal initial amount");
 
         uint256 finalWstrBTCTotalSupply = wstrBTCContract.totalSupply();
-        assertEq(finalWstrBTCTotalSupply, 0, "wstrBTC total supply after unwrap should be zero");
+        assertEq(finalWstrBTCTotalSupply, 0, "wstrBTC total supply after redeem should be zero");
     }
 
-    function testStrBTCPerTokenAndTokensPerStrBTC() public {
-        vm.expectRevert(wstrBTC.NoWstrBTCSupply.selector);
-        wstrBTCContract.strBTCPerToken(BTC);
-
-        vm.expectRevert(wstrBTC.NoStrBTCBalance.selector);
-        wstrBTCContract.tokensPerStrBTC(BTC);
-
+    function testConvertToAssetsAndConvertToShares() public {
         uint256 strBTCAmount = 10 * BTC;
 
         vm.prank(alice);
         strBTCContract.approve(address(wstrBTCContract), strBTCAmount);
 
         vm.prank(alice);
-        wstrBTCContract.wrap(strBTCAmount);
+        wstrBTCContract.deposit(strBTCAmount, alice);
 
-        uint256 strBTCPerToken = wstrBTCContract.strBTCPerToken(BTC);
-        uint256 tokensPerStrBTC = wstrBTCContract.tokensPerStrBTC(BTC);
+        uint256 assetsFor1Share = wstrBTCContract.convertToAssets(BTC);
+        uint256 sharesFor1Asset = wstrBTCContract.convertToShares(BTC);
 
-        uint256 strBTCBalance = strBTCContract.balanceOf(address(wstrBTCContract));
-        uint256 wstrBTCSupply = wstrBTCContract.totalSupply();
-
-        uint256 expectedStrBTCPerToken = (strBTCBalance * BTC) / wstrBTCSupply;
-        uint256 expectedTokensPerStrBTC = (wstrBTCSupply * BTC) / strBTCBalance;
-
-        assertEq(strBTCPerToken, expectedStrBTCPerToken, "strBTCPerToken calculation is incorrect");
-        assertEq(tokensPerStrBTC, expectedTokensPerStrBTC, "tokensPerStrBTC calculation is incorrect");
+        assertEq(assetsFor1Share, 1e8, "convertToAssets should return 1e8 before rebase");
+        assertEq(sharesFor1Asset, 1e8, "convertToShares should return 1e8 before rebase");
 
         uint256 rewardAmount = 5 * BTC;
         bytes memory validSignature =
             hex"061a75b07f6a29cea39b16a9d708f2b513efeaef7279f2b2105faec69e06943c5e8a8ec4c134e4298736378eed6f7f0bbd8d706f23fa0f0d1446580313a5d89b";
         strBTCContract.mintRewards(0, rewardAmount, validSignature);
 
-        strBTCBalance = strBTCContract.balanceOf(address(wstrBTCContract));
-        wstrBTCSupply = wstrBTCContract.totalSupply();
+        uint256 totalAssets = wstrBTCContract.totalAssets();
+        uint256 totalSupply = wstrBTCContract.totalSupply();
 
-        uint256 strBTCPerTokenAfterRebase = wstrBTCContract.strBTCPerToken(BTC);
-        uint256 tokensPerStrBTCAfterRebase = wstrBTCContract.tokensPerStrBTC(BTC);
+        uint256 assetsFor1ShareAfterRebase = wstrBTCContract.convertToAssets(BTC);
+        uint256 sharesFor1AssetAfterRebase = wstrBTCContract.convertToShares(BTC);
 
-        expectedStrBTCPerToken = (strBTCBalance * BTC) / wstrBTCSupply;
-        expectedTokensPerStrBTC = (wstrBTCSupply * BTC) / strBTCBalance;
+        uint256 expectedAssetsFor1Share = (totalAssets * BTC) / totalSupply;
+        uint256 expectedSharesFor1Asset = (totalSupply * BTC) / totalAssets;
 
-        assertEq(
-            strBTCPerTokenAfterRebase, expectedStrBTCPerToken, "strBTCPerToken calculation after rebase is incorrect"
+        assertApproxEqAbs(
+            assetsFor1ShareAfterRebase, expectedAssetsFor1Share, 1, "convertToAssets incorrect after rebase"
         );
+
+        assertApproxEqAbs(
+            sharesFor1AssetAfterRebase, expectedSharesFor1Asset, 1, "convertToShares incorrect after rebase"
+        );
+    }
+
+    function testAssetAndTotalAssets() public view {
+        assertEq(wstrBTCContract.asset(), address(strBTCContract), "Asset should be strBTC contract");
+
+        uint256 totalAssets = wstrBTCContract.totalAssets();
         assertEq(
-            tokensPerStrBTCAfterRebase, expectedTokensPerStrBTC, "tokensPerStrBTC calculation after rebase is incorrect"
+            totalAssets, strBTCContract.balanceOf(address(wstrBTCContract)), "totalAssets should match vault balance"
         );
     }
 }
