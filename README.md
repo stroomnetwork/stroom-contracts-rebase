@@ -35,19 +35,29 @@ The rebase mechanism is implemented through the relationship between the user's 
 
 ## wstrBTC
 
-**wstrBTC** is an ERC-20 wrapper for the rebase token **strBTC**, which locks user shares. This ensures compatibility with DeFi protocols that do not support rebase tokens.
+**wstrBTC** is an ERC-4626 Tokenized Vault wrapper for the rebase token **strBTC**. It provides a fixed-balance representation of strBTC shares, ensuring full compatibility with DeFi protocols that do not support rebase tokens.
+
+### Standards Compliance
+
+- **ERC-4626:** Standardized yield-bearing vault with `deposit()`, `redeem()`, and rate conversion functions
+- **ERC-20:** Standard token functionality with 8 decimal places (matching strBTC)
+- **ERC-20 Permit (EIP-2612):** Gasless approvals through cryptographic signatures
 
 ### Key Functions
 
-#### Wrap
+#### Standard ERC-4626 Methods
 
-- Converts `strBTC` to `wstrBTC`.
-- user's `wstrBTC` balance is stable, but conversion rate to `strBTC` is changing
+- **`deposit(assets, receiver)`** — Converts `strBTC` to `wstrBTC` shares
+- **`redeem(shares, receiver, owner)`** — Converts `wstrBTC` shares back to `strBTC`
+- **`convertToShares(assets)`** — Preview how many shares you'll get for assets
+- **`convertToAssets(shares)`** — Preview how many assets you'll get for shares
+- **`totalAssets()`** — Total strBTC held by the vault
+- **`asset()`** — Returns the underlying strBTC token address
 
-#### Unwrap
+#### ERC-20 Permit Methods
 
-- Converts `wstrBTC` back to `strBTC`.
-- Allows users to retrieve tokens with updated balances after a reward accrual rebases.
+- **`permit(owner, spender, value, deadline, v, r, s)`** — Gasless approval via signature
+- Enables one-transaction DeFi interactions without separate approve calls
 
 ---
 
@@ -63,15 +73,17 @@ The rebase mechanism is implemented through the relationship between the user's 
     balanceOf(account) = (shares[account] * totalSupply) / totalShares
     ```
 
-### wstrBTC
+### wstrBTC (ERC-4626 Vault)
 
-- Locks user shares to provide fixed balances.
-- Compatible with DeFi protocols that do not support rebase tokens.
-- Calculates shares and balances using the following formulas:
+- Uses standard ERC-4626 conversion formulas with built-in rounding protection
+- **Assets:** strBTC tokens (underlying rebase token)
+- **Shares:** wstrBTC tokens (fixed-balance vault tokens)
+- Conversion rates automatically reflect strBTC rebase rewards:
 
     ```solidity
-    wstrBTC = (strBTCAmount * totalShares) / totalSupply
-    strBTC = (sharesAmount * totalSupply) / totalShares
+    // Standard ERC-4626 conversions
+    shares = convertToShares(assets) = assets * totalSupply() / totalAssets()
+    assets = convertToAssets(shares) = shares * totalAssets() / totalSupply()
     ```
 
 ## Reward Minting Process for the Rebase Token
@@ -85,12 +97,14 @@ The rebase mechanism is implemented through the relationship between the user's 
 3. **Rewards Distribution**  
    The newly minted `strBTC` is added to the pool, automatically distributed to token holders through the rebase mechanism.
 
-4. **Shares Remain Constant**  
-   The total shares (`totalShares`) remain constant, ensuring that ownership percentages do not change.
+4. **wstrBTC Rate Update**  
+   The `wstrBTC` vault automatically reflects new rewards through increased `convertToAssets()` rate.
 
-5. **Rebase Mechanism**  
-   The rebase mechanism ensures that all token holders' balances increase proportionally, reflecting the pool growth.
+5. **Shares Remain Constant**  
+   Both strBTC total shares (`totalShares`) and wstrBTC shares remain constant, ensuring ownership percentages don't change.
 
+6. **Rebase Mechanism**  
+   The rebase mechanism ensures that all token holders' balances increase proportionally, reflected in both strBTC balances and wstrBTC conversion rates.
 
 ### Build & Export
 
