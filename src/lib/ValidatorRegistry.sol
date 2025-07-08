@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2023 STROOM <info@stroom.fi>
 
-pragma solidity ^0.8.27;
+pragma solidity 0.8.27;
 
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
 import "bip340-solidity/src/Bip340Ecrec.sol";
