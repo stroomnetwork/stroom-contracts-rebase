@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.27;
+pragma solidity 0.8.27;
 
 import {Test, console2} from "forge-std/Test.sol";
 import {StroomTimelockController} from "../src/lib/TimelockController.sol";
