@@ -13,6 +13,8 @@
 [submodule "lib/safe-contracts"]
 	path = lib/safe-contracts
 	url = https://github.com/safe-global/safe-contracts
+	commit = bf943f80fec5ac647159d26161446ac5d716a294
 [submodule "lib/blockchain-tools"]
 	path = lib/blockchain-tools
 	url = https://github.com/stroomnetwork/blockchain-tools
+	commit = ce6790028acd9b4d25c7063a0d285496c308b1fd
