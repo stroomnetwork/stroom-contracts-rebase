@@ -32,6 +32,13 @@ contract UserActivatorTest is Test {
         assertEq(deriver.getBTCDepositAddress(user), "tb1p8pjjwryjq9d7tke50ndcd97kqxkeztk4k85lzg7l2nynektg9zdsq836sr");
     }
 
+    function testCannotGetBTCDepositAddressIfNotActivated() public {
+        address user = 0x1EaCa1277BcDFa83E60658D8938B3D63cD3E63C1;
+
+        vm.expectRevert("User is not activated");
+        deriver.getBTCDepositAddress(user);
+    }
+
     function testUserActivationSimnet() public {
         deriver.setSeed(
             "sb1p5z8wl5tu7m0d79vzqqsl9gu0x4fkjug857fusx4fl4kfgwh5j25sxv5dv3",

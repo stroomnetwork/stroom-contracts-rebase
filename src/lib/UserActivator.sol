@@ -41,4 +41,11 @@ contract UserActivator is BTCDepositAddressDeriver, Ownable {
     {
         BTCDepositAddressDeriver.setSeed(_btcAddr1, _btcAddr2, _network);
     }
+
+    function getBTCDepositAddress(address ethAddress) public view override returns (string memory) {
+        if (!activatedAddresses[ethAddress]) {
+            revert("User is not activated");
+        }
+        return BTCDepositAddressDeriver.getBTCDepositAddress(ethAddress);
+    }
 }
