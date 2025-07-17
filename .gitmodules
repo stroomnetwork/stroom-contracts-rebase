@@ -17,4 +17,4 @@
 [submodule "lib/blockchain-tools"]
 	path = lib/blockchain-tools
 	url = https://github.com/stroomnetwork/blockchain-tools
-	commit = ce6790028acd9b4d25c7063a0d285496c308b1fd
+	commit = 3bcde42c4425b22d73fba0a1cb3ff17c4276470e
