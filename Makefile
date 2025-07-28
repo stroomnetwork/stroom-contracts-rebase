@@ -86,17 +86,47 @@ deploy-mainnet: ## Deploy contracts to Mainnet
 
 .PHONY: verify-proxy-admin
 verify-proxy-admin: ## Verify proxy contract address
-	forge verify-contract --compiler-version 0.8.27 --constructor-args $(cast abi-encode "constructor(address)" ${OWNER_ADDRESS}) --etherscan-api-key ${ETHERSCAN_API_KEY} ${PROXY_ADMIN_ADDRESS} ProxyAdmin --rpc-url ${SEPOLIA_RPC_URL}
+	forge verify-contract --compiler-version 0.8.27 --constructor-args "$(shell cast abi-encode 'constructor(address)' ${OWNER_ADDRESS})" --etherscan-api-key ${ETHERSCAN_API_KEY} ${PROXY_ADMIN_ADDRESS} ProxyAdmin --rpc-url ${SEPOLIA_RPC_URL}
+
+.PHONY: verify-strbtc
+verify-strbtc: ## Verify strBTC contract address
+	forge verify-contract --compiler-version 0.8.27 --constructor-args "$(shell cast abi-encode 'initialize(address,address,address,address)' ${BITCOIN_NETWORK} ${APP_ETH_VALIDATOR_REGISTRY_ADDRESS} ${ADMIN_ADDRESS} ${PAUSER_ADDRESS})" --etherscan-api-key ${ETHERSCAN_API_KEY} ${APP_ETH_STRBTC_ADDRESS} strBTC --rpc-url ${SEPOLIA_RPC_URL}
+
+.PHONY: verify-wstrbtc
+verify-wstrbtc: ## Verify wstrBTC contract address
+	forge verify-contract --compiler-version 0.8.27 --constructor-args "$(shell cast abi-encode 'constructor(address)' ${APP_ETH_STRBTC_ADDRESS})" --etherscan-api-key ${ETHERSCAN_API_KEY} ${APP_ETH_WSTRBTC_ADDRESS} src/wstrBTC.sol:wstrBTC --rpc-url ${SEPOLIA_RPC_URL}
+
+.PHONY: verify-user-activator
+verify-user-activator: ## Verify user activator contract address
+	forge verify-contract --compiler-version 0.8.27 --constructor-args "$(shell cast abi-encode 'constructor()')" --etherscan-api-key ${ETHERSCAN_API_KEY} ${APP_ETH_USER_ACTIVATOR_ADDRESS} UserActivator --rpc-url ${SEPOLIA_RPC_URL}
+
+.PHONY: verify-validator-registry
+verify-validator-registry: ## Verify validator registry contract address
+	forge verify-contract --compiler-version 0.8.27 --constructor-args "$(shell cast abi-encode 'constructor()')" --etherscan-api-key ${ETHERSCAN_API_KEY} ${APP_ETH_VALIDATOR_REGISTRY_ADDRESS} ValidatorRegistry --rpc-url ${SEPOLIA_RPC_URL}
+
+.PHONY: verify-wbtcconverter
+verify-wbtcconverter: ## Verify wBTCConverter contract address
+	forge verify-contract --compiler-version 0.8.27 --constructor-args "$(shell cast abi-encode 'constructor(address,address,address)' ${WBTC_ADDRESS} ${APP_ETH_STRBTC_ADDRESS} ${OWNER_ADDRESS})" --etherscan-api-key ${ETHERSCAN_API_KEY} ${APP_ETH_WBTC_CONVERTER_ADDRESS} WBTCConverterImmutable --rpc-url ${SEPOLIA_RPC_URL}
 
 .PHONY: script-set-seed-sepolia
 script-set-seed-sepolia: export BITCOIN_NETWORK=1 
 script-set-seed-sepolia: ## Sets joint public key and taproot addresses for the contracts
 	forge script script/SetSeed.s.sol:SetSeedScript --rpc-url ${SEPOLIA_RPC_URL} --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}
 
+.PHONY: script-set-seed-mainnet
+script-set-seed-mainnet: export BITCOIN_NETWORK=0 
+script-set-seed-mainnet: ## Sets joint public key and taproot addresses for the contracts
+	forge script script/SetSeed.s.sol:SetSeedScript --rpc-url ${MAINNET_RPC_URL} --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}
+
 .PHONY: script-deploy-timelock
 script-deploy-timelock: export BITCOIN_NETWORK=1 
 script-deploy-timelock: ## Deploy timelock contract
 	forge script script/DeployTimelock.s.sol:DeployTimelockScript --rpc-url ${SEPOLIA_RPC_URL} --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}
+
+.PHONY: script-deploy-timelock-mainnet
+script-deploy-timelock-mainnet: export BITCOIN_NETWORK=0 
+script-deploy-timelock-mainnet: ## Deploy timelock contract
+	forge script script/DeployTimelock.s.sol:DeployTimelockScript --rpc-url ${MAINNET_RPC_URL} --private-key ${PRIVATE_KEY} --broadcast --verify --etherscan-api-key ${ETHERSCAN_API_KEY}
 
 .PHONY: script-clean
 script-clean: ## Clean up forge artifacts

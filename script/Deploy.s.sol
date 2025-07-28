@@ -7,7 +7,7 @@ import "../src/strBTC.sol";
 import "../src/wstrBTC.sol";
 import "../src/lib/UserActivator.sol";
 import "../src/lib/ValidatorRegistry.sol";
-import "../src/wBTCConverter.sol";
+import "../src/wBTCConverterImmutable.sol";
 import "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
 
 import {Strings as OpenZeppelinStrings} from "@openzeppelin/contracts/utils/Strings.sol";
@@ -19,6 +19,7 @@ contract DeployScript is Script {
     address pauser = vm.envAddress("PAUSER_ADDRESS");
     address manager = vm.envAddress("MANAGER_ADDRESS");
     address wbtcAddress = vm.envAddress("WBTC_ADDRESS");
+    address timelock = vm.envAddress("APP_ETH_TIMELOCK_ADDRESS");
 
     function setUp() public {
         network = BitcoinNetworkEncoder.Network(vm.envUint("BITCOIN_NETWORK"));
@@ -47,20 +48,9 @@ contract DeployScript is Script {
 
         UserActivator activator = new UserActivator();
 
-        // Deploy wBTCConverter implementation
-        WBTCConverter wBtcConverterImplementation = new WBTCConverter();
-
-        // Deploy wBTCConverter proxy
-        bytes memory wBtcConverterData = abi.encodeWithSelector(
-            WBTCConverter.initialize.selector, wbtcAddress, address(strBtcContract), admin, manager, pauser
-        );
-
-        TransparentUpgradeableProxy wBtcConverterProxy =
-            new TransparentUpgradeableProxy(address(wBtcConverterImplementation), admin, wBtcConverterData);
-        WBTCConverter wBtcConverterContract = WBTCConverter(address(wBtcConverterProxy));
-
-        // Get wBTCConverter ProxyAdmin address
-        address wBtcConverterProxyAdmin = _getProxyAdmin(address(wBtcConverterProxy));
+        // Deploy wBTCConverter
+        WBTCConverterImmutable wBtcConverterContract =
+            new WBTCConverterImmutable(wbtcAddress, address(strBtcContract), timelock);
 
         // Grant CONVERTER_ROLE to wBTCConverter in strBTC
         strBtcContract.grantRole(strBtcContract.CONVERTER_ROLE(), address(wBtcConverterContract));
@@ -100,12 +90,6 @@ contract DeployScript is Script {
             string.concat(
                 "APP_ETH_STRBTC_PROXY_ADMIN_ADDRESS=",
                 OpenZeppelinStrings.toHexString(uint256(uint160(strBtcProxyAdmin)))
-            )
-        );
-        console.logString(
-            string.concat(
-                "APP_ETH_WBTC_CONVERTER_PROXY_ADMIN_ADDRESS=",
-                OpenZeppelinStrings.toHexString(uint256(uint160(wBtcConverterProxyAdmin)))
             )
         );
     }
