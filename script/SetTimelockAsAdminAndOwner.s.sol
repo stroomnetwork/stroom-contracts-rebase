@@ -101,7 +101,6 @@ contract SetTimelockAsAdminAndOwner is Script {
         console.log(string.concat(contractName, " upgrade admin successfully transferred"));
     }
 
-
     function _transferUserActivatorOwnership(address _timelock) internal {
         console.log("Transferring UserActivator ownership...");
 
