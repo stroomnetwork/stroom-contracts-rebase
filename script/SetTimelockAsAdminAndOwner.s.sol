@@ -29,8 +29,6 @@ contract SetTimelockAsAdminAndOwner is Script {
     address strBtcProxyAdmin;
     address userActivator;
     address validatorRegistry;
-    address wbtcConverter;
-    address wbtcConverterProxyAdmin;
 
     function setUp() public {
         timelock = vm.envAddress("APP_ETH_TIMELOCK_ADDRESS");
@@ -38,8 +36,6 @@ contract SetTimelockAsAdminAndOwner is Script {
         strBtcProxyAdmin = vm.envAddress("APP_ETH_STRBTC_PROXY_ADMIN_ADDRESS");
         userActivator = vm.envAddress("APP_ETH_USER_ACTIVATOR_ADDRESS");
         validatorRegistry = vm.envAddress("APP_ETH_VALIDATOR_REGISTRY_ADDRESS");
-        wbtcConverter = vm.envAddress("APP_ETH_WBTC_CONVERTER_ADDRESS");
-        wbtcConverterProxyAdmin = vm.envAddress("APP_ETH_WBTC_CONVERTER_PROXY_ADMIN_ADDRESS");
 
         console.log("=== Transfer Admin Roles to Timelock ===");
         console.log("Timelock address:", timelock);
@@ -47,8 +43,6 @@ contract SetTimelockAsAdminAndOwner is Script {
         console.log("strBTC ProxyAdmin:", strBtcProxyAdmin);
         console.log("UserActivator:", userActivator);
         console.log("ValidatorRegistry:", validatorRegistry);
-        console.log("wBTCConverter:", wbtcConverter);
-        console.log("wBTCConverter ProxyAdmin:", wbtcConverterProxyAdmin);
     }
 
     function run() external {
@@ -60,16 +54,10 @@ contract SetTimelockAsAdminAndOwner is Script {
         // 2. Transfer upgrade admin for strBTC proxy
         _transferProxyAdminOwnership(strBtcProxyAdmin, "strBTC", timelock);
 
-        // 3. Transfer wbtcConverter admin role (DEFAULT_ADMIN_ROLE)
-        _transferWBTCConverterAdmin(timelock);
-
-        // 4. Transfer upgrade admin for wBTCConverter proxy
-        _transferProxyAdminOwnership(wbtcConverterProxyAdmin, "wBTCConverter", timelock);
-
-        // 5. Transfer UserActivator ownership
+        // 3. Transfer UserActivator ownership
         _transferUserActivatorOwnership(timelock);
 
-        // 6. Transfer ValidatorRegistry ownership
+        // 4. Transfer ValidatorRegistry ownership
         _transferValidatorRegistryOwnership(timelock);
 
         vm.stopBroadcast();
@@ -111,26 +99,6 @@ contract SetTimelockAsAdminAndOwner is Script {
         // Verify transfer
         require(proxyAdmin.owner() == _timelock, "Failed to transfer ProxyAdmin ownership");
         console.log(string.concat(contractName, " upgrade admin successfully transferred"));
-    }
-
-    function _transferWBTCConverterAdmin(address _timelock) internal {
-        WBTCConverter converter = WBTCConverter(wbtcConverter);
-        bytes32 adminRole = converter.DEFAULT_ADMIN_ROLE();
-
-        console.log("Transferring wBTCConverter admin role...");
-
-        // Grant admin role to timelock
-        converter.grantRole(adminRole, _timelock);
-        console.log("    Granted DEFAULT_ADMIN_ROLE to timelock");
-
-        // Renounce admin role from current deployer
-        converter.renounceRole(adminRole, msg.sender);
-        console.log("    Renounced DEFAULT_ADMIN_ROLE from deployer");
-
-        // Verify transfer
-        require(converter.hasRole(adminRole, _timelock), "Failed to grant admin role to timelock");
-        require(!converter.hasRole(adminRole, msg.sender), "Failed to renounce admin role from deployer");
-        console.log("    wBTCConverter admin role successfully transferred");
     }
 
     function _transferUserActivatorOwnership(address _timelock) internal {
