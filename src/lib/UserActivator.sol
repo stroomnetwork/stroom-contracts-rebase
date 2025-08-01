@@ -11,7 +11,6 @@ contract UserActivator is BTCDepositAddressDeriver, Ownable {
 
     // Mapping of activated addresses.
     mapping(address => bool) public activatedAddresses;
-    bool public isSeedSet = false;
 
     constructor() BTCDepositAddressDeriver() Ownable(msg.sender) {}
 
@@ -23,7 +22,7 @@ contract UserActivator is BTCDepositAddressDeriver, Ownable {
      */
     function activateUser(address _userAddress) public {
         require(activatedAddresses[_userAddress] == false, "User is already activated");
-        require(isSeedSet, "Seed must be set before activating users");
+        require(wasSeedSet, "Seed must be set before activating users");
 
         activatedAddresses[_userAddress] = true;
 
@@ -42,7 +41,6 @@ contract UserActivator is BTCDepositAddressDeriver, Ownable {
         onlyOwner
     {
         BTCDepositAddressDeriver.setSeed(_btcAddr1, _btcAddr2, _network);
-        isSeedSet = true;
     }
 
     function getBTCDepositAddress(address ethAddress) public view override returns (string memory) {
