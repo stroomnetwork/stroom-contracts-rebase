@@ -17,7 +17,6 @@ contract DeployScript is Script {
     BitcoinNetworkEncoder.Network private network;
     address admin = vm.envAddress("ADMIN_ADDRESS"); // msg.sender
     address pauser = vm.envAddress("PAUSER_ADDRESS");
-    address manager = vm.envAddress("MANAGER_ADDRESS");
     address wbtcAddress = vm.envAddress("WBTC_ADDRESS");
     address timelock = vm.envAddress("APP_ETH_TIMELOCK_ADDRESS");
 
