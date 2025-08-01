@@ -103,4 +103,11 @@ contract UserActivatorTest is Test {
         assertTrue(deriver.wasSeedSet());
         assertEq(deriver.btcAddr1(), "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3");
     }
+
+    function testUserActivationFailsIfSeedNotSet() public {
+        address user = 0x1EaCa1277BcDFa83E60658D8938B3D63cD3E63C1;
+
+        vm.expectRevert("Seed must be set before activating users");
+        deriver.activateUser(user);
+    }
 }

@@ -22,6 +22,7 @@ contract UserActivator is BTCDepositAddressDeriver, Ownable {
      */
     function activateUser(address _userAddress) public {
         require(activatedAddresses[_userAddress] == false, "User is already activated");
+        require(wasSeedSet, "Seed must be set before activating users");
 
         activatedAddresses[_userAddress] = true;
 
