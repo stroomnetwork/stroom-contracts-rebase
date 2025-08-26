@@ -19,6 +19,7 @@ var filesToTest = []string{
 	"user_activator.go",
 	"validator_registry.go",
 	"proxy.go",
+	"bitcoin_utils_wrapper.go",
 }
 
 // TestAbiCompatibility verifies that the committed Go bindings for the Solidity smart contracts are up-to-date.
