@@ -3,16 +3,17 @@
 
 pragma solidity 0.8.27;
 
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./ValidatorRegistry.sol";
 
-contract ValidatorMessageReceiver {
+contract ValidatorMessageReceiver is Initializable {
     // Add a state variable for the ValidatorRegistry contract
     ValidatorRegistry public validatorRegistry;
 
     error InvalidValidatorSignature();
 
-    // Update the constructor to accept the ValidatorRegistry contract
-    function initialize(ValidatorRegistry _validatorRegistry) public {
+    // Internal initialization function - can only be called once during contract initialization
+    function __ValidatorMessageReceiver_init(ValidatorRegistry _validatorRegistry) internal onlyInitializing {
         validatorRegistry = _validatorRegistry;
     }
 
