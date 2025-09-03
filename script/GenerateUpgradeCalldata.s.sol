@@ -20,7 +20,7 @@ contract GenerateUpgradeCalldata is Script {
 
     function run() external view {
         bytes memory callData = abi.encodeWithSignature("reinitializeV2()");
-        
+
         bytes memory upgradeAndCallData =
             abi.encodeWithSignature("upgradeAndCall(address,address,bytes)", strBTCProxy, newStrBTCImpl, callData);
 
