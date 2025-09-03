@@ -79,7 +79,7 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
         ERC20Upgradeable.__ERC20_init("Stroom Bitcoin", "strBTC");
         PausableUpgradeable.__Pausable_init();
         AccessControlUpgradeable.__AccessControl_init();
-        ValidatorMessageReceiver.initialize(_validatorRegistry);
+        ValidatorMessageReceiver.__ValidatorMessageReceiver_init(_validatorRegistry);
 
         minWithdrawAmount = 7_000; // 0.00007 BTC
 
@@ -92,6 +92,12 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
         minTimeBetweenRewards = 1 days;
         lastRewardTimestamp = 0;
     }
+
+    /**
+     * @dev Reinitializer for version 2
+     * This function can only be called once and is used to migrate state
+     */
+    function reinitializeV2() public reinitializer(2) {}
 
     // ========= Override Functions ======
 

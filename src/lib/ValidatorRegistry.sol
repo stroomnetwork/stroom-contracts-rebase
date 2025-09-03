@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// SPDX-FileCopyrightText: 2023 STROOM <info@stroom.fi>
+// SPDX-FileCopyrightText: 2023 STROOM <info@stroom.network>
 
 pragma solidity 0.8.27;
 
