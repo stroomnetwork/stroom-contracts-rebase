@@ -94,14 +94,10 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     }
 
     /**
-     * @dev Reinitializer for version 2 - fixes critical initialize vulnerability
+     * @dev Reinitializer for version 2
      * This function can only be called once and is used to migrate state
      */
-    function reinitializeV2() public reinitializer(2) {
-        // This function is intentionally empty as the fix is in the base contract
-        // The main purpose is to prevent any future calls to the old public initialize
-        // and ensure the contract is properly marked as reinitialized
-    }
+    function reinitializeV2() public reinitializer(2) {}
 
     // ========= Override Functions ======
 
