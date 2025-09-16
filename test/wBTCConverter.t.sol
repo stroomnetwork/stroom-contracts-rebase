@@ -6,7 +6,7 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {BitcoinNetworkEncoder} from "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
 import "../src/strBTC.sol";
-import "../src/wBTCConverter.sol";
+import "../src/converters/wBTCConverter.sol";
 import "../src/lib/ValidatorRegistry.sol";
 
 contract MockWBTC is ERC20 {

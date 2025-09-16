@@ -3,7 +3,7 @@ pragma solidity 0.8.27;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "./IStrBTC.sol";
+import "../IStrBTC.sol";
 
 /**
  * @title WBTCConverterImmutable
