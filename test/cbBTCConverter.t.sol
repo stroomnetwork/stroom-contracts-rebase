@@ -86,10 +86,8 @@ contract CBBTCConverterTest is Test {
         assertEq(cbbtcConverter.totalBurned(), 0);
         assertEq(cbbtcConverter.currentlyMinted(), 0);
 
-        assertEq(cbbtcConverter.incomingRateNumerator(), 999);
-        assertEq(cbbtcConverter.incomingRateDenominator(), 1000);
-        assertEq(cbbtcConverter.outgoingRateNumerator(), 1000);
-        assertEq(cbbtcConverter.outgoingRateDenominator(), 999);
+        assertEq(cbbtcConverter.rateNumerator(), 999);
+        assertEq(cbbtcConverter.rateDenominator(), 1000);
     }
 
     function testConvertCBBTCToStrBTC() public {
