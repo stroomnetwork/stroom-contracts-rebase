@@ -22,22 +22,14 @@ contract CBBTCConverterImmutable {
     address public immutable withdrawer;
     uint256 public immutable mintingLimit;
 
-    // Incoming exchange rate (cbBTC -> strBTC)
-    uint256 public immutable incomingRateNumerator; // strBTC
-    uint256 public immutable incomingRateDenominator; // cbBTC
-
-    // Outgoing exchange rate (strBTC -> cbBTC)
-    uint256 public immutable outgoingRateNumerator; // strBTC
-    uint256 public immutable outgoingRateDenominator; // cbBTC
+    uint256 public immutable rateNumerator;
+    uint256 public immutable rateDenominator;
 
     uint256 public totalMinted;
     uint256 public totalBurned;
 
     event CBBTCConverted(address indexed user, uint256 cbbtcAmount, uint256 strbtcAmount);
     event StrBTCConverted(address indexed user, uint256 strbtcAmount, uint256 cbbtcAmount);
-    event IncomingRateUpdated(uint256 numerator, uint256 denominator, address updater);
-    event OutgoingRateUpdated(uint256 numerator, uint256 denominator, address updater);
-    event MintingLimitUpdated(uint256 newLimit, address updater);
 
     modifier onlyWithdrawer() {
         if (msg.sender != withdrawer) revert NotWithdrawer();
@@ -56,11 +48,8 @@ contract CBBTCConverterImmutable {
 
         withdrawer = _withdrawer;
 
-        incomingRateNumerator = 999;
-        incomingRateDenominator = 1000;
-
-        outgoingRateNumerator = 1000;
-        outgoingRateDenominator = 999;
+        rateNumerator = 999;
+        rateDenominator = 1000;
 
         mintingLimit = 500 * 10 ** 8; // 500 cbBTC
 
@@ -84,7 +73,7 @@ contract CBBTCConverterImmutable {
     function convertCBBTCToStrBTC(uint256 cbbtcAmount) external returns (uint256) {
         if (cbbtcAmount == 0) revert AmountMustBeGreaterThanZero();
 
-        uint256 strbtcAmount = (cbbtcAmount * incomingRateNumerator) / incomingRateDenominator;
+        uint256 strbtcAmount = (cbbtcAmount * rateNumerator) / rateDenominator;
         if (strbtcAmount == 0) revert ConversionResultedInZeroTokens();
         if (currentlyMinted() + strbtcAmount > mintingLimit) revert MintingLimitExceeded();
 
@@ -106,7 +95,7 @@ contract CBBTCConverterImmutable {
     function convertStrBTCToCBBTC(uint256 strbtcAmount) external returns (uint256) {
         if (strbtcAmount == 0) revert AmountMustBeGreaterThanZero();
 
-        uint256 cbbtcAmount = (strbtcAmount * outgoingRateDenominator) / outgoingRateNumerator;
+        uint256 cbbtcAmount = (strbtcAmount * rateNumerator) / rateDenominator;
         if (cbbtcAmount == 0) revert ConversionResultedInZeroTokens();
         if (cbbtc.balanceOf(address(this)) < cbbtcAmount) revert InsufficientCBBTCBalance();
 
