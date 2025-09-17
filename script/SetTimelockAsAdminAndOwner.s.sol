@@ -4,7 +4,7 @@ pragma solidity 0.8.27;
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
 import "../src/strBTC.sol";
-import "../src/wBTCConverter.sol";
+import "../src/converters/wBTCConverter.sol";
 import "../src/lib/UserActivator.sol";
 import "../src/lib/ValidatorRegistry.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";

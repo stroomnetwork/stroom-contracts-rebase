@@ -7,7 +7,7 @@ import "../src/strBTC.sol";
 import "../src/wstrBTC.sol";
 import "../src/lib/UserActivator.sol";
 import "../src/lib/ValidatorRegistry.sol";
-import "../src/wBTCConverterImmutable.sol";
+import "../src/converters/wBTCConverterImmutable.sol";
 import "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
 
 import {Strings as OpenZeppelinStrings} from "@openzeppelin/contracts/utils/Strings.sol";

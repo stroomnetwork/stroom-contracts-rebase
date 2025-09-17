@@ -3,7 +3,7 @@ pragma solidity 0.8.27;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "./IStrBTC.sol";
+import "../IStrBTC.sol";
 
 /**
  * @title WBTCConverterImmutable
@@ -22,22 +22,14 @@ contract WBTCConverterImmutable {
     address public immutable withdrawer;
     uint256 public immutable mintingLimit;
 
-    // Incoming exchange rate (WBTC -> strBTC)
-    uint256 public immutable incomingRateNumerator; // strBTC
-    uint256 public immutable incomingRateDenominator; // WBTC
-
-    // Outgoing exchange rate (strBTC -> WBTC)
-    uint256 public immutable outgoingRateNumerator; // strBTC
-    uint256 public immutable outgoingRateDenominator; // WBTC
+    uint256 public immutable rateNumerator;
+    uint256 public immutable rateDenominator;
 
     uint256 public totalMinted;
     uint256 public totalBurned;
 
     event WBTCConverted(address indexed user, uint256 wbtcAmount, uint256 strbtcAmount);
     event StrBTCConverted(address indexed user, uint256 strbtcAmount, uint256 wbtcAmount);
-    event IncomingRateUpdated(uint256 numerator, uint256 denominator, address updater);
-    event OutgoingRateUpdated(uint256 numerator, uint256 denominator, address updater);
-    event MintingLimitUpdated(uint256 newLimit, address updater);
 
     modifier onlyWithdrawer() {
         if (msg.sender != withdrawer) revert NotWithdrawer();
@@ -55,11 +47,8 @@ contract WBTCConverterImmutable {
 
         withdrawer = _withdrawer;
 
-        incomingRateNumerator = 999;
-        incomingRateDenominator = 1000;
-
-        outgoingRateNumerator = 1000;
-        outgoingRateDenominator = 999;
+        rateNumerator = 999;
+        rateDenominator = 1000;
 
         mintingLimit = 500 * 10 ** 8; // 500 wBTC
 
@@ -83,7 +72,7 @@ contract WBTCConverterImmutable {
     function convertWBTCToStrBTC(uint256 wbtcAmount) external returns (uint256) {
         if (wbtcAmount == 0) revert AmountMustBeGreaterThanZero();
 
-        uint256 strbtcAmount = (wbtcAmount * incomingRateNumerator) / incomingRateDenominator;
+        uint256 strbtcAmount = (wbtcAmount * rateNumerator) / rateDenominator;
         if (strbtcAmount == 0) revert ConversionResultedInZeroTokens();
         if (currentlyMinted() + strbtcAmount > mintingLimit) revert MintingLimitExceeded();
 
@@ -105,7 +94,7 @@ contract WBTCConverterImmutable {
     function convertStrBTCToWBTC(uint256 strbtcAmount) external returns (uint256) {
         if (strbtcAmount == 0) revert AmountMustBeGreaterThanZero();
 
-        uint256 wbtcAmount = (strbtcAmount * outgoingRateDenominator) / outgoingRateNumerator;
+        uint256 wbtcAmount = (strbtcAmount * rateNumerator) / rateDenominator;
         if (wbtcAmount == 0) revert ConversionResultedInZeroTokens();
         if (wbtc.balanceOf(address(this)) < wbtcAmount) revert InsufficientWBTCBalance();
 
