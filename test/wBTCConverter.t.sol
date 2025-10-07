@@ -364,7 +364,7 @@ contract WBTCConverterTest is Test {
         wbtcConverter.setIncomingRate(105, 100);
 
         vm.prank(manager);
-        wbtcConverter.setOutgoingRate(110, 100);
+        wbtcConverter.setOutgoingRate(90, 100);
 
         vm.startPrank(user1);
         uint256 strbtcReceived = wbtcConverter.convertWBTCToStrBTC(wbtcAmount);
@@ -372,7 +372,7 @@ contract WBTCConverterTest is Test {
         uint256 expectedStrBTC = (wbtcAmount * 105) / 100;
         assertEq(strbtcReceived, expectedStrBTC, "Received strBTC amount incorrect with custom incoming rate");
 
-        uint256 expectedWbtcReturn = (strbtcReceived * 100) / 110;
+        uint256 expectedWbtcReturn = (strbtcReceived * 90) / 100;
 
         strbtc.approve(address(wbtcConverter), strbtcReceived);
         uint256 wbtcReturned = wbtcConverter.convertStrBTCToWBTC(strbtcReceived);
@@ -776,7 +776,7 @@ contract WBTCConverterTest is Test {
         uint256 wbtcReceived = wbtcConverter.convertStrBTCToWBTC(strbtcReceived);
         vm.stopPrank();
 
-        uint256 expectedWbtc = (strbtcReceived * 99) / 100;
+        uint256 expectedWbtc = (strbtcReceived * 100) / 99;
         assertEq(wbtcReceived, expectedWbtc, "WBTC amount incorrect");
         assertEq(
             wbtc.balanceOf(user1), initialUserWbtcBalance - initialAmount + expectedWbtc, "Final WBTC balance incorrect"
@@ -818,7 +818,7 @@ contract WBTCConverterTest is Test {
         assertEq(strbtc.balanceOf(user1), 0, "User1 strBTC balance should be zero");
 
         vm.prank(manager);
-        wbtcConverter.setCommonExchangeRate(2, 1);
+        wbtcConverter.setCommonExchangeRate(1, 2);
 
         vm.startPrank(user2);
         strbtc.approve(address(wbtcConverter), strbtcReceived2);
@@ -857,7 +857,7 @@ contract WBTCConverterTest is Test {
         }
 
         vm.prank(manager);
-        wbtcConverter.setCommonExchangeRate(2, 1);
+        wbtcConverter.setCommonExchangeRate(1, 2);
 
         // Another batch of conversions with new rate
         for (uint256 i = 0; i < 3; i++) {
@@ -869,7 +869,7 @@ contract WBTCConverterTest is Test {
             strbtcBalances[i] += additionalStrBTC;
             vm.stopPrank();
 
-            assertEq(additionalStrBTC, amount * 2, "User should receive strBTC at new rate");
+            assertEq(additionalStrBTC, amount / 2, "User should receive strBTC at new rate");
         }
 
         // Some users convert back
@@ -928,10 +928,13 @@ contract WBTCConverterTest is Test {
         uint256 strbtcReceived = wbtcConverter.convertWBTCToStrBTC(minRequired);
         assertEq(strbtcReceived, minRequired / 2, "Should receive non-zero amount");
 
-        strbtc.approve(address(wbtcConverter), oneWei);
+        strbtc.approve(address(wbtcConverter), strbtcReceived);
 
-        uint256 wbtcReceived = wbtcConverter.convertStrBTCToWBTC(oneWei);
-        assertEq(wbtcReceived, oneWei * 2, "Should receive double the amount with 1:2 rate");
+        vm.expectRevert(WBTCConverter.ConversionResultedInZeroTokens.selector);
+        wbtcConverter.convertStrBTCToWBTC(oneWei);
+
+        vm.expectRevert(WBTCConverter.ConversionResultedInZeroTokens.selector);
+        wbtcConverter.convertStrBTCToWBTC(strbtcReceived);
 
         vm.stopPrank();
     }
@@ -1040,11 +1043,11 @@ contract WBTCConverterTest is Test {
         strbtc.approve(address(wbtcConverter), 5);
 
         uint256 wbtcFromEven = wbtcConverter.convertStrBTCToWBTC(3);
-        assertEq(wbtcFromEven, (3 * 2) / 3, "Even division in reverse should work");
+        assertEq(wbtcFromEven, 4, "Even division in reverse should work");
 
         uint256 wbtcFromOdd = wbtcConverter.convertStrBTCToWBTC(2);
         uint256 two = 2;
-        uint256 expectedWbtcFromOdd = (two * two) / 3;
+        uint256 expectedWbtcFromOdd = (two * 3) / two;
         assertEq(wbtcFromOdd, expectedWbtcFromOdd, "Should handle reverse division with remainder");
 
         vm.stopPrank();
@@ -1086,7 +1089,7 @@ contract WBTCConverterTest is Test {
         uint256 wbtcReceived = wbtcConverter.convertStrBTCToWBTC(user3StrBtcReceived);
         vm.stopPrank();
 
-        assertEq(wbtcReceived, 9999998, "Should receive correct amount based on conversion calculation");
+        assertEq(wbtcReceived, 9999997, "Should receive correct amount based on conversion calculation");
     }
 
     function testPrecisionLossLimits() public {
@@ -1127,9 +1130,10 @@ contract WBTCConverterTest is Test {
         vm.stopPrank();
 
         vm.prank(manager);
-        wbtcConverter.setCommonExchangeRate(1000000000, 1);
+        wbtcConverter.setCommonExchangeRate(1, 1000000000);
 
         uint256 smallAmount = 1;
+
         deal(address(wbtc), address(wbtcConverter), 1000000000);
 
         vm.startPrank(user3);
@@ -1137,7 +1141,7 @@ contract WBTCConverterTest is Test {
         uint256 wbtcReceived = wbtcConverter.convertStrBTCToWBTC(strbtcAmount);
         vm.stopPrank();
 
-        assertEq(wbtcReceived, smallAmount, "Should receive minimal amount at 1B:1 rate");
+        assertEq(wbtcReceived, smallAmount, "Should receive minimal amount at 1:1B rate");
     }
 
     function testRedemptionRoundingErrors() public {
@@ -1154,9 +1158,9 @@ contract WBTCConverterTest is Test {
         assertEq(strbtcReceived, 3, "Should receive 3 strBTC for 10 WBTC");
 
         strbtc.approve(address(wbtcConverter), strbtcReceived);
-        uint256 wbtcReceived = wbtcConverter.convertStrBTCToWBTC(strbtcReceived);
 
-        assertEq(wbtcReceived, 10, "Converting back should yield original amount");
+        vm.expectRevert(WBTCConverter.ConversionResultedInZeroTokens.selector);
+        wbtcConverter.convertStrBTCToWBTC(strbtcReceived);
 
         vm.stopPrank();
 
@@ -1174,7 +1178,7 @@ contract WBTCConverterTest is Test {
         strbtc.approve(address(wbtcConverter), strbtcReceived2);
         uint256 wbtcReceived2 = wbtcConverter.convertStrBTCToWBTC(strbtcReceived2);
 
-        assertEq(wbtcReceived2, 9, "Should receive 9 WBTC due to previous truncation");
+        assertEq(wbtcReceived2, 1, "Should receive 1 WBTC due to previous truncation");
         assertLt(wbtcReceived2, 10, "Should have lost some value due to rounding");
 
         vm.stopPrank();
@@ -1287,7 +1291,7 @@ contract WBTCConverterTest is Test {
         vm.stopPrank();
 
         assertEq(
-            user1WBTCReceived, (user1ConvertBack * 90) / 100, "User1 received incorrect WBTC amount on conversion back"
+            user1WBTCReceived, (user1ConvertBack * 100) / 90, "User1 received incorrect WBTC amount on conversion back"
         );
 
         expectedMinted = expectedMinted - user1ConvertBack;

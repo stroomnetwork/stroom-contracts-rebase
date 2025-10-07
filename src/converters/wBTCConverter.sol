@@ -114,7 +114,7 @@ contract WBTCConverter is PausableUpgradeable, AccessControlUpgradeable {
     function convertStrBTCToWBTC(uint256 strbtcAmount) external whenNotPaused returns (uint256) {
         if (strbtcAmount == 0) revert AmountMustBeGreaterThanZero();
 
-        uint256 wbtcAmount = (strbtcAmount * outgoingRateDenominator) / outgoingRateNumerator;
+        uint256 wbtcAmount = (strbtcAmount * outgoingRateNumerator) / outgoingRateDenominator;
         if (wbtcAmount == 0) revert ConversionResultedInZeroTokens();
 
         if (wbtc.balanceOf(address(this)) < wbtcAmount) revert InsufficientWBTCBalance();
