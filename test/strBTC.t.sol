@@ -789,4 +789,259 @@ contract STRBTCTest is Test {
         token.setValidatorRegistry(newValidatorRegistry);
         assertEq(address(token.validatorRegistry()), newValidatorRegistry, "Validator registry should be updated");
     }
+
+    function testReinitializeV3() public {
+        token.reinitializeV3();
+
+        assertEq(token.dailyRedeemLimitPerAccount(), 1_000_000, "Account limit should be 0.01 BTC");
+        assertEq(token.dailyGlobalRedeemLimit(), 100_000_000, "Global limit should be 1 BTC");
+        assertEq(token.redeemLimitsEnabled(), false, "Limits should be disabled by default");
+    }
+
+    function testSetDailyRedeemLimitPerAccount() public {
+        token.reinitializeV3();
+
+        uint256 newLimit = 5_000_000; // 0.05 BTC
+
+        vm.prank(alice);
+        vm.expectRevert();
+        token.setDailyRedeemLimitPerAccount(newLimit);
+
+        vm.prank(admin);
+        vm.expectEmit(true, true, true, true);
+        emit strBTC.DailyRedeemLimitPerAccountUpdated(newLimit);
+        token.setDailyRedeemLimitPerAccount(newLimit);
+
+        assertEq(token.dailyRedeemLimitPerAccount(), newLimit, "Account limit should be updated");
+    }
+
+    function testSetDailyGlobalRedeemLimit() public {
+        token.reinitializeV3();
+
+        uint256 newLimit = 200_000_000; // 2 BTC
+
+        vm.prank(alice);
+        vm.expectRevert();
+        token.setDailyGlobalRedeemLimit(newLimit);
+
+        vm.prank(admin);
+        vm.expectEmit(true, true, true, true);
+        emit strBTC.DailyGlobalRedeemLimitUpdated(newLimit);
+        token.setDailyGlobalRedeemLimit(newLimit);
+
+        assertEq(token.dailyGlobalRedeemLimit(), newLimit, "Global limit should be updated");
+    }
+
+    function testSetRedeemLimitsEnabled() public {
+        token.reinitializeV3();
+
+        vm.prank(alice);
+        vm.expectRevert();
+        token.setRedeemLimitsEnabled(true);
+
+        vm.prank(admin);
+        vm.expectEmit(true, true, true, true);
+        emit strBTC.RedeemLimitsEnabledUpdated(true);
+        token.setRedeemLimitsEnabled(true);
+
+        assertEq(token.redeemLimitsEnabled(), true, "Limits should be enabled");
+
+        vm.prank(admin);
+        vm.expectEmit(true, true, true, true);
+        emit strBTC.RedeemLimitsEnabledUpdated(false);
+        token.setRedeemLimitsEnabled(false);
+
+        assertEq(token.redeemLimitsEnabled(), false, "Limits should be disabled");
+    }
+
+    function testRedeemWithLimitsDisabled() public {
+        token.reinitializeV3();
+
+        vm.prank(admin);
+        token.transfer(alice, 10 * BTC);
+
+        vm.prank(alice);
+        token.redeem(5 * BTC, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+
+        assertEq(token.balanceOf(alice), 5 * BTC, "Alice should have 5 BTC left");
+    }
+
+    function testRedeemWithinAccountLimit() public {
+        token.reinitializeV3();
+
+        vm.prank(admin);
+        token.setRedeemLimitsEnabled(true);
+
+        vm.prank(admin);
+        token.transfer(alice, 10 * BTC);
+
+        uint256 redeemAmount = 500_000; // 0.005 BTC
+
+        assertEq(token.getRemainingAccountRedeemLimit(alice), 1_000_000, "Should have full limit");
+
+        vm.prank(alice);
+        token.redeem(redeemAmount, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+
+        assertEq(token.getRemainingAccountRedeemLimit(alice), 500_000, "Should have half limit left");
+        assertEq(token.getUsedAccountRedeemAmount(alice), 500_000, "Should track used amount");
+    }
+
+    function testRedeemExceedsAccountLimit() public {
+        token.reinitializeV3();
+
+        vm.prank(admin);
+        token.setRedeemLimitsEnabled(true);
+
+        vm.prank(admin);
+        token.transfer(alice, 10 * BTC);
+
+        uint256 redeemAmount = 1_500_000; // 0.015 BTC
+
+        vm.prank(alice);
+        vm.expectRevert(strBTC.DailyRedeemLimitExceeded.selector);
+        token.redeem(redeemAmount, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+    }
+
+    function testRedeemMultipleTransactionsUpToLimit() public {
+        token.reinitializeV3();
+
+        vm.prank(admin);
+        token.setRedeemLimitsEnabled(true);
+
+        vm.prank(admin);
+        token.transfer(alice, 10 * BTC);
+
+        vm.prank(alice);
+        token.redeem(600_000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+        assertEq(token.getRemainingAccountRedeemLimit(alice), 400_000);
+
+        vm.prank(alice);
+        token.redeem(400_000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+        assertEq(token.getRemainingAccountRedeemLimit(alice), 0);
+
+        vm.prank(alice);
+        vm.expectRevert(strBTC.DailyRedeemLimitExceeded.selector);
+        token.redeem(100_000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+    }
+
+    function testRedeemExceedsGlobalLimit() public {
+        token.reinitializeV3();
+
+        vm.prank(admin);
+        token.setRedeemLimitsEnabled(true);
+
+        vm.prank(admin);
+        token.setDailyRedeemLimitPerAccount(200_000_000); // 2 BTC
+
+        vm.prank(admin);
+        token.transfer(alice, 200 * BTC);
+        vm.prank(admin);
+        token.transfer(bob, 200 * BTC);
+
+        vm.prank(alice);
+        token.redeem(80_000_000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"); // 0.8 BTC
+
+        assertEq(token.getRemainingGlobalRedeemLimit(), 20_000_000, "Should have 0.2 BTC global limit left");
+        assertEq(token.getUsedGlobalRedeemAmount(), 80_000_000, "Should track global used amount");
+
+        vm.prank(bob);
+        vm.expectRevert(strBTC.GlobalDailyRedeemLimitExceeded.selector);
+        token.redeem(30_000_000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+
+        vm.prank(bob);
+        token.redeem(20_000_000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+
+        assertEq(token.getRemainingGlobalRedeemLimit(), 0, "Global limit should be exhausted");
+    }
+
+    function testRedeemLimitsResetNextDay() public {
+        token.reinitializeV3();
+
+        vm.prank(admin);
+        token.setRedeemLimitsEnabled(true);
+
+        vm.prank(admin);
+        token.transfer(alice, 10 * BTC);
+
+        vm.prank(alice);
+        token.redeem(1_000_000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+
+        assertEq(token.getRemainingAccountRedeemLimit(alice), 0, "Limit should be exhausted");
+        assertEq(token.getUsedAccountRedeemAmount(alice), 1_000_000);
+
+        vm.prank(alice);
+        vm.expectRevert(strBTC.DailyRedeemLimitExceeded.selector);
+        token.redeem(100_000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+
+        vm.warp(block.timestamp + 1 days + 1);
+
+        assertEq(token.getRemainingAccountRedeemLimit(alice), 1_000_000, "Limit should be reset");
+        assertEq(token.getUsedAccountRedeemAmount(alice), 0, "Used amount should be reset");
+
+        vm.prank(alice);
+        token.redeem(500_000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+
+        assertEq(token.getRemainingAccountRedeemLimit(alice), 500_000);
+    }
+
+    function testGlobalLimitResetsNextDay() public {
+        token.reinitializeV3();
+
+        vm.prank(admin);
+        token.setRedeemLimitsEnabled(true);
+
+        vm.prank(admin);
+        token.setDailyRedeemLimitPerAccount(200_000_000);
+
+        vm.prank(admin);
+        token.transfer(alice, 200 * BTC);
+
+        vm.prank(alice);
+        token.redeem(100_000_000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+
+        assertEq(token.getRemainingGlobalRedeemLimit(), 0, "Global limit should be exhausted");
+
+        vm.warp(block.timestamp + 1 days + 1);
+
+        assertEq(token.getRemainingGlobalRedeemLimit(), 100_000_000, "Global limit should be reset");
+        assertEq(token.getUsedGlobalRedeemAmount(), 0, "Global used amount should be reset");
+
+        vm.prank(alice);
+        token.redeem(50_000_000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+
+        assertEq(token.getRemainingGlobalRedeemLimit(), 50_000_000);
+    }
+
+    function testGetRemainingLimitsWhenDisabled() public {
+        token.reinitializeV3();
+
+        assertEq(token.getRemainingAccountRedeemLimit(alice), type(uint256).max);
+        assertEq(token.getRemainingGlobalRedeemLimit(), type(uint256).max);
+    }
+
+    function testMultipleAccountsIndependentLimits() public {
+        token.reinitializeV3();
+
+        vm.prank(admin);
+        token.setRedeemLimitsEnabled(true);
+
+        vm.prank(admin);
+        token.transfer(alice, 10 * BTC);
+        vm.prank(admin);
+        token.transfer(bob, 10 * BTC);
+
+        vm.prank(alice);
+        token.redeem(600_000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+
+        assertEq(token.getRemainingAccountRedeemLimit(alice), 400_000, "Alice limit should be reduced");
+        assertEq(token.getRemainingAccountRedeemLimit(bob), 1_000_000, "Bob limit should be untouched");
+
+        vm.prank(bob);
+        token.redeem(300_000, "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa");
+
+        assertEq(token.getRemainingAccountRedeemLimit(alice), 400_000, "Alice limit should still be same");
+        assertEq(token.getRemainingAccountRedeemLimit(bob), 700_000, "Bob limit should be reduced");
+
+        assertEq(token.getUsedGlobalRedeemAmount(), 900_000, "Global should track both");
+    }
 }
