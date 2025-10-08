@@ -31,6 +31,8 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     error MaxRewardPercentTooHigh();
     error MinTimeBetweenRewardsTooLow();
     error InvalidAddress();
+    error DailyRedeemLimitExceeded();
+    error GlobalDailyRedeemLimitExceeded();
 
     using BitcoinUtils for BitcoinNetworkEncoder.Network;
 
@@ -40,6 +42,11 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
         bytes32 btcDepositId;
         address recipient;
         uint256 amount;
+    }
+
+    struct DailyLimit {
+        uint256 amount;
+        uint256 lastResetDay;
     }
 
     uint256 public constant DUST_LIMIT = 546; // sat
@@ -64,11 +71,20 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     mapping(bytes32 => bool) public btcDepositIds;
     mapping(address => uint256) private shares;
 
+    uint256 public dailyRedeemLimitPerAccount;
+    uint256 public dailyGlobalRedeemLimit;
+    bool public redeemLimitsEnabled;
+    DailyLimit private globalDailyRedeem;
+    mapping(address => DailyLimit) private accountDailyRedeems;
+
     event MintBtcEvent(address indexed _to, uint256 _value, bytes32 _btcDepositId);
     event RedeemBtcEvent(address indexed _from, string _BTCAddress, uint256 _value, uint256 _id);
     event TotalSupplyUpdatedEvent(uint256 _nonce, uint256 _totalBTCSupply, uint256 _totalShares);
     event ConverterMint(address indexed converter, address indexed recipient, uint256 amount);
     event ConverterBurn(address indexed converter, address indexed from, uint256 amount);
+    event DailyRedeemLimitPerAccountUpdated(uint256 newLimit);
+    event DailyGlobalRedeemLimitUpdated(uint256 newLimit);
+    event RedeemLimitsEnabledUpdated(bool enabled);
 
     function initialize(
         BitcoinNetworkEncoder.Network _network,
@@ -98,6 +114,16 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
      * This function can only be called once and is used to migrate state
      */
     function reinitializeV2() public reinitializer(2) {}
+
+    /**
+     * @dev Reinitializer for version 3
+     * This function can only be called once and initializes redeem limits
+     */
+    function reinitializeV3() public reinitializer(3) {
+        dailyRedeemLimitPerAccount = 1_000_000; // 0.01 BTC = 1,000,000 sats
+        dailyGlobalRedeemLimit = 100_000_000; // 1 BTC = 100,000,000 sats
+        redeemLimitsEnabled = false; // disabled by default
+    }
 
     // ========= Override Functions ======
 
@@ -287,6 +313,33 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
         validatorRegistry = ValidatorRegistry(_validatorRegistry);
     }
 
+    /**
+     * @notice Sets the daily redeem limit per account
+     * @param _limit The new daily limit in satoshis
+     */
+    function setDailyRedeemLimitPerAccount(uint256 _limit) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        dailyRedeemLimitPerAccount = _limit;
+        emit DailyRedeemLimitPerAccountUpdated(_limit);
+    }
+
+    /**
+     * @notice Sets the global daily redeem limit
+     * @param _limit The new global daily limit in satoshis
+     */
+    function setDailyGlobalRedeemLimit(uint256 _limit) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        dailyGlobalRedeemLimit = _limit;
+        emit DailyGlobalRedeemLimitUpdated(_limit);
+    }
+
+    /**
+     * @notice Enables or disables redeem limits
+     * @param _enabled Whether to enable redeem limits
+     */
+    function setRedeemLimitsEnabled(bool _enabled) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        redeemLimitsEnabled = _enabled;
+        emit RedeemLimitsEnabledUpdated(_enabled);
+    }
+
     // ========= Converter-only ========
 
     /**
@@ -370,6 +423,36 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     // ========= Internal ========
 
     /**
+     * @dev Checks and updates redeem limits for account and global limits
+     * @param account The account attempting to redeem
+     * @param amount The amount to redeem
+     */
+    function _checkAndUpdateRedeemLimits(address account, uint256 amount) internal {
+        uint256 currentDay = block.timestamp / 1 days;
+
+        DailyLimit storage accountLimit = accountDailyRedeems[account];
+        if (accountLimit.lastResetDay < currentDay) {
+            accountLimit.amount = 0;
+            accountLimit.lastResetDay = currentDay;
+        }
+
+        if (accountLimit.amount + amount > dailyRedeemLimitPerAccount) {
+            revert DailyRedeemLimitExceeded();
+        }
+        accountLimit.amount += amount;
+
+        if (globalDailyRedeem.lastResetDay < currentDay) {
+            globalDailyRedeem.amount = 0;
+            globalDailyRedeem.lastResetDay = currentDay;
+        }
+
+        if (globalDailyRedeem.amount + amount > dailyGlobalRedeemLimit) {
+            revert GlobalDailyRedeemLimitExceeded();
+        }
+        globalDailyRedeem.amount += amount;
+    }
+
+    /**
      * @dev Mint new tokens.
      * @param _amount The amount of tokens to mint.
      * @param _recipient The address that will receive the minted tokens.
@@ -400,6 +483,10 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
         if (_amount < minWithdrawAmount) revert AmountBelowMinWithdraw();
         if (!network.validateBitcoinAddress(BTCAddress)) revert InvalidBTCAddress();
 
+        if (redeemLimitsEnabled) {
+            _checkAndUpdateRedeemLimits(msg.sender, _amount);
+        }
+
         _burn(msg.sender, _amount);
 
         redeemCounter += 1;
@@ -424,5 +511,77 @@ contract strBTC is ERC20Upgradeable, ValidatorMessageReceiver, PausableUpgradeab
     function getPooledBTCByShares(uint256 sharesAmount) public view returns (uint256) {
         if (_totalShares == 0 || _totalPooledBTC == 0) revert InvalidTotalSharesOrPooledBTC();
         return (sharesAmount * _totalPooledBTC) / _totalShares;
+    }
+
+    /**
+     * @notice Returns the remaining redeem limit for an account today
+     * @param account The account to check
+     * @return The remaining amount that can be redeemed today
+     */
+    function getRemainingAccountRedeemLimit(address account) public view returns (uint256) {
+        if (!redeemLimitsEnabled) return type(uint256).max;
+
+        uint256 currentDay = block.timestamp / 1 days;
+        DailyLimit storage accountLimit = accountDailyRedeems[account];
+
+        if (accountLimit.lastResetDay < currentDay) {
+            return dailyRedeemLimitPerAccount;
+        }
+
+        if (accountLimit.amount >= dailyRedeemLimitPerAccount) {
+            return 0;
+        }
+
+        return dailyRedeemLimitPerAccount - accountLimit.amount;
+    }
+
+    /**
+     * @notice Returns the remaining global redeem limit for today
+     * @return The remaining global amount that can be redeemed today
+     */
+    function getRemainingGlobalRedeemLimit() public view returns (uint256) {
+        if (!redeemLimitsEnabled) return type(uint256).max;
+
+        uint256 currentDay = block.timestamp / 1 days;
+
+        if (globalDailyRedeem.lastResetDay < currentDay) {
+            return dailyGlobalRedeemLimit;
+        }
+
+        if (globalDailyRedeem.amount >= dailyGlobalRedeemLimit) {
+            return 0;
+        }
+
+        return dailyGlobalRedeemLimit - globalDailyRedeem.amount;
+    }
+
+    /**
+     * @notice Returns the used redeem amount for an account today
+     * @param account The account to check
+     * @return The amount already redeemed today
+     */
+    function getUsedAccountRedeemAmount(address account) public view returns (uint256) {
+        uint256 currentDay = block.timestamp / 1 days;
+        DailyLimit storage accountLimit = accountDailyRedeems[account];
+
+        if (accountLimit.lastResetDay < currentDay) {
+            return 0;
+        }
+
+        return accountLimit.amount;
+    }
+
+    /**
+     * @notice Returns the used global redeem amount for today
+     * @return The global amount already redeemed today
+     */
+    function getUsedGlobalRedeemAmount() public view returns (uint256) {
+        uint256 currentDay = block.timestamp / 1 days;
+
+        if (globalDailyRedeem.lastResetDay < currentDay) {
+            return 0;
+        }
+
+        return globalDailyRedeem.amount;
     }
 }
