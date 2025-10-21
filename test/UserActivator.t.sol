@@ -5,13 +5,25 @@ import {Test, console} from "forge-std/Test.sol";
 import {UserActivator} from "../src/lib/UserActivator.sol";
 import {BitcoinNetworkEncoder} from "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
 import {BTCDepositAddressDeriver} from "../lib/blockchain-tools/src/BTCDepositAddressDeriver.sol";
-import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 contract UserActivatorTest is Test {
     UserActivator public deriver;
+    address public owner;
 
     function setUp() public {
-        deriver = new UserActivator();
+        owner = address(this);
+
+        // Deploy UserActivator implementation
+        UserActivator activatorImpl = new UserActivator();
+
+        // Deploy UserActivator proxy
+        bytes memory activatorData = abi.encodeWithSelector(UserActivator.initialize.selector, owner);
+        TransparentUpgradeableProxy activatorProxy =
+            new TransparentUpgradeableProxy(address(activatorImpl), owner, activatorData);
+
+        deriver = UserActivator(address(activatorProxy));
     }
 
     function testUserActivation() public {
@@ -63,7 +75,7 @@ contract UserActivatorTest is Test {
 
         vm.startPrank(notOwner);
 
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, notOwner));
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, notOwner));
         deriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3",
             "tb1psfpmk6v8cvd8kr4rdda0l8gwyn42v5yfjlqkhnureprgs5tuumkqvdkewz",
@@ -81,7 +93,7 @@ contract UserActivatorTest is Test {
         // An attempt to bypass the check by casting to a base type
         BTCDepositAddressDeriver baseContract = BTCDepositAddressDeriver(address(deriver));
 
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, notOwner));
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, notOwner));
         baseContract.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3",
             "tb1psfpmk6v8cvd8kr4rdda0l8gwyn42v5yfjlqkhnureprgs5tuumkqvdkewz",
@@ -109,5 +121,147 @@ contract UserActivatorTest is Test {
 
         vm.expectRevert("Seed must be set before activating users");
         deriver.activateUser(user);
+    }
+
+    function testSetDailyActivationLimit() public {
+        uint256 newLimit = 200;
+
+        address notOwner = address(0x123);
+        vm.startPrank(notOwner);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, notOwner));
+        deriver.setDailyActivationLimit(newLimit);
+        vm.stopPrank();
+
+        vm.expectEmit(true, true, true, true);
+        emit UserActivator.DailyActivationLimitUpdated(newLimit);
+        deriver.setDailyActivationLimit(newLimit);
+
+        assertEq(deriver.dailyActivationLimit(), newLimit, "Limit should be updated");
+    }
+
+    function testSetActivationLimitsEnabled() public {
+        address notOwner = address(0x123);
+        vm.startPrank(notOwner);
+        vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, notOwner));
+        deriver.setActivationLimitsEnabled(true);
+        vm.stopPrank();
+
+        vm.expectEmit(true, true, true, true);
+        emit UserActivator.ActivationLimitsEnabled(true);
+        deriver.setActivationLimitsEnabled(true);
+
+        assertEq(deriver.activationLimitsEnabled(), true, "Limits should be enabled");
+
+        vm.expectEmit(true, true, true, true);
+        emit UserActivator.ActivationLimitsEnabled(false);
+        deriver.setActivationLimitsEnabled(false);
+
+        assertEq(deriver.activationLimitsEnabled(), false, "Limits should be disabled");
+    }
+
+    function testActivateUserWithLimitsDisabled() public {
+        deriver.setSeed(
+            "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3",
+            "tb1psfpmk6v8cvd8kr4rdda0l8gwyn42v5yfjlqkhnureprgs5tuumkqvdkewz",
+            BitcoinNetworkEncoder.Network.Testnet
+        );
+
+        for (uint160 i = 0; i < 150; i++) {
+            deriver.activateUser(address(i));
+        }
+
+        for (uint160 i = 0; i < 150; i++) {
+            assertTrue(deriver.activatedAddresses(address(i)));
+        }
+    }
+
+    function testActivateUserWithinLimit() public {
+        deriver.setSeed(
+            "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3",
+            "tb1psfpmk6v8cvd8kr4rdda0l8gwyn42v5yfjlqkhnureprgs5tuumkqvdkewz",
+            BitcoinNetworkEncoder.Network.Testnet
+        );
+
+        deriver.setActivationLimitsEnabled(true);
+
+        assertEq(deriver.getRemainingActivationLimit(), 100, "Should have full limit");
+
+        for (uint160 i = 0; i < 50; i++) {
+            deriver.activateUser(address(i));
+        }
+
+        assertEq(deriver.getRemainingActivationLimit(), 50, "Should have half limit left");
+        assertEq(deriver.getUsedActivationCount(), 50, "Should track used count");
+    }
+
+    function testActivateUserExceedsLimit() public {
+        deriver.setSeed(
+            "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3",
+            "tb1psfpmk6v8cvd8kr4rdda0l8gwyn42v5yfjlqkhnureprgs5tuumkqvdkewz",
+            BitcoinNetworkEncoder.Network.Testnet
+        );
+
+        deriver.setActivationLimitsEnabled(true);
+
+        for (uint160 i = 0; i < 100; i++) {
+            deriver.activateUser(address(i));
+        }
+
+        vm.expectRevert(UserActivator.DailyActivationLimitExceeded.selector);
+        deriver.activateUser(address(uint160(100)));
+    }
+
+    function testActivationLimitResetsNextDay() public {
+        deriver.setSeed(
+            "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3",
+            "tb1psfpmk6v8cvd8kr4rdda0l8gwyn42v5yfjlqkhnureprgs5tuumkqvdkewz",
+            BitcoinNetworkEncoder.Network.Testnet
+        );
+
+        deriver.setActivationLimitsEnabled(true);
+
+        for (uint160 i = 0; i < 100; i++) {
+            deriver.activateUser(address(i));
+        }
+
+        assertEq(deriver.getRemainingActivationLimit(), 0, "Limit should be exhausted");
+        assertEq(deriver.getUsedActivationCount(), 100);
+
+        vm.expectRevert(UserActivator.DailyActivationLimitExceeded.selector);
+        deriver.activateUser(address(uint160(100)));
+
+        vm.warp(block.timestamp + 1 days + 1);
+
+        assertEq(deriver.getRemainingActivationLimit(), 100, "Limit should be reset");
+        assertEq(deriver.getUsedActivationCount(), 0, "Used count should be reset");
+
+        for (uint160 i = 100; i < 150; i++) {
+            deriver.activateUser(address(i));
+        }
+
+        assertEq(deriver.getRemainingActivationLimit(), 50);
+    }
+
+    function testGetRemainingLimitWhenDisabled() public view {
+        // When limits are disabled, remaining limit should return max uint256
+        assertEq(deriver.getRemainingActivationLimit(), type(uint256).max);
+    }
+
+    function testCustomActivationLimit() public {
+        deriver.setSeed(
+            "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3",
+            "tb1psfpmk6v8cvd8kr4rdda0l8gwyn42v5yfjlqkhnureprgs5tuumkqvdkewz",
+            BitcoinNetworkEncoder.Network.Testnet
+        );
+
+        deriver.setDailyActivationLimit(10);
+        deriver.setActivationLimitsEnabled(true);
+
+        for (uint160 i = 0; i < 10; i++) {
+            deriver.activateUser(address(i));
+        }
+
+        vm.expectRevert(UserActivator.DailyActivationLimitExceeded.selector);
+        deriver.activateUser(address(uint160(10)));
     }
 }

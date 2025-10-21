@@ -45,7 +45,17 @@ contract DeployScript is Script {
         // Deploy wstrBTC
         wstrBTC wstrBtcContract = new wstrBTC(address(strBtcContract));
 
-        UserActivator activator = new UserActivator();
+        // Deploy UserActivator implementation
+        UserActivator activatorImplementation = new UserActivator();
+
+        // Deploy UserActivator proxy
+        bytes memory activatorData = abi.encodeWithSelector(UserActivator.initialize.selector, admin);
+        TransparentUpgradeableProxy activatorProxy =
+            new TransparentUpgradeableProxy(address(activatorImplementation), admin, activatorData);
+        UserActivator activator = UserActivator(address(activatorProxy));
+
+        // Get UserActivator ProxyAdmin address
+        address activatorProxyAdmin = _getProxyAdmin(address(activatorProxy));
 
         // Deploy wBTCConverter
         WBTCConverterImmutable wBtcConverterContract =
@@ -89,6 +99,12 @@ contract DeployScript is Script {
             string.concat(
                 "APP_ETH_STRBTC_PROXY_ADMIN_ADDRESS=",
                 OpenZeppelinStrings.toHexString(uint256(uint160(strBtcProxyAdmin)))
+            )
+        );
+        console.logString(
+            string.concat(
+                "APP_ETH_USER_ACTIVATOR_PROXY_ADMIN_ADDRESS=",
+                OpenZeppelinStrings.toHexString(uint256(uint160(activatorProxyAdmin)))
             )
         );
     }
