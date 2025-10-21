@@ -20,8 +20,9 @@ contract ValidatorRegistryTest is Test {
         pauser = makeAddr("Pauser");
         // Deploy strBTC
         strBTC strBtcImplementation = new strBTC();
-        bytes memory strBtcData =
-            abi.encodeWithSelector(strBTC.initialize.selector, BitcoinNetworkEncoder.Network.Testnet, vr, admin, pauser);
+        bytes memory strBtcData = abi.encodeWithSelector(
+            strBTC.initialize.selector, BitcoinNetworkEncoder.Network.Testnet, vr, admin, pauser
+        );
         TransparentUpgradeableProxy strBtcProxy =
             new TransparentUpgradeableProxy(address(strBtcImplementation), admin, strBtcData);
 
