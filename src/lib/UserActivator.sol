@@ -50,7 +50,7 @@ contract UserActivator is Initializable, BTCDepositAddressDeriver, OwnableUpgrad
 
         // Initialize UserActivator state
         dailyActivationLimit = 100;
-        activationLimitsEnabled = false; // disabled by default
+        activationLimitsEnabled = true; // enabled by default
     }
 
     /**
