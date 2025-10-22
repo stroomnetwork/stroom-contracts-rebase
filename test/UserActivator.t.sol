@@ -166,6 +166,8 @@ contract UserActivatorTest is Test {
             BitcoinNetworkEncoder.Network.Testnet
         );
 
+        deriver.setActivationLimitsEnabled(false);
+
         for (uint160 i = 0; i < 150; i++) {
             deriver.activateUser(address(i));
         }
@@ -181,8 +183,6 @@ contract UserActivatorTest is Test {
             "tb1psfpmk6v8cvd8kr4rdda0l8gwyn42v5yfjlqkhnureprgs5tuumkqvdkewz",
             BitcoinNetworkEncoder.Network.Testnet
         );
-
-        deriver.setActivationLimitsEnabled(true);
 
         assertEq(deriver.getRemainingActivationLimit(), 100, "Should have full limit");
 
@@ -201,8 +201,6 @@ contract UserActivatorTest is Test {
             BitcoinNetworkEncoder.Network.Testnet
         );
 
-        deriver.setActivationLimitsEnabled(true);
-
         for (uint160 i = 0; i < 100; i++) {
             deriver.activateUser(address(i));
         }
@@ -217,8 +215,6 @@ contract UserActivatorTest is Test {
             "tb1psfpmk6v8cvd8kr4rdda0l8gwyn42v5yfjlqkhnureprgs5tuumkqvdkewz",
             BitcoinNetworkEncoder.Network.Testnet
         );
-
-        deriver.setActivationLimitsEnabled(true);
 
         for (uint160 i = 0; i < 100; i++) {
             deriver.activateUser(address(i));
@@ -242,8 +238,14 @@ contract UserActivatorTest is Test {
         assertEq(deriver.getRemainingActivationLimit(), 50);
     }
 
-    function testGetRemainingLimitWhenDisabled() public view {
-        // When limits are disabled, remaining limit should return max uint256
+    function testLimitsEnabledByDefault() public view {
+        assertEq(deriver.activationLimitsEnabled(), true, "Limits should be enabled by default");
+        assertEq(deriver.dailyActivationLimit(), 100, "Default limit should be 100");
+    }
+
+    function testGetRemainingLimitWhenDisabled() public {
+        deriver.setActivationLimitsEnabled(false);
+
         assertEq(deriver.getRemainingActivationLimit(), type(uint256).max);
     }
 
@@ -255,7 +257,6 @@ contract UserActivatorTest is Test {
         );
 
         deriver.setDailyActivationLimit(10);
-        deriver.setActivationLimitsEnabled(true);
 
         for (uint160 i = 0; i < 10; i++) {
             deriver.activateUser(address(i));
