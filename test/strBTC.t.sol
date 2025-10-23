@@ -40,8 +40,9 @@ contract STRBTCTest is Test {
 
         // Deploy strBTC implementation
         strBTC strBtcImplementation = new strBTC();
-        bytes memory strBtcData =
-            abi.encodeWithSelector(strBTC.initialize.selector, BitcoinNetworkEncoder.Network.Mainnet, vr, admin, pauser);
+        bytes memory strBtcData = abi.encodeWithSelector(
+            strBTC.initialize.selector, BitcoinNetworkEncoder.Network.Mainnet, vr, admin, pauser
+        );
         TransparentUpgradeableProxy strBtcProxy =
             new TransparentUpgradeableProxy(address(strBtcImplementation), admin, strBtcData);
         token = strBTC(address(strBtcProxy));
