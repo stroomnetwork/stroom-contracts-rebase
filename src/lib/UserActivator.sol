@@ -4,13 +4,11 @@ pragma solidity 0.8.27;
 
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {
-    ERC721EnumerableUpgradeable
-} from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
+import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import {BTCDepositAddressDeriver} from "blockchain-tools/src/BTCDepositAddressDeriver.sol";
 import {BitcoinNetworkEncoder} from "blockchain-tools/src/BitcoinNetworkEncoder.sol";
 
-contract UserActivator is Initializable, BTCDepositAddressDeriver, ERC721EnumerableUpgradeable, OwnableUpgradeable {
+contract UserActivator is Initializable, BTCDepositAddressDeriver, ERC721Upgradeable, OwnableUpgradeable {
     error DailyActivationLimitExceeded();
     error UserAlreadyActivated();
     error TokenIsNonTransferable();
@@ -31,6 +29,7 @@ contract UserActivator is Initializable, BTCDepositAddressDeriver, ERC721Enumera
     DailyActivationTracker private dailyActivations;
 
     uint256 private _nextTokenId;
+    mapping(address => uint256) private _userTokenIds;
 
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
@@ -50,7 +49,6 @@ contract UserActivator is Initializable, BTCDepositAddressDeriver, ERC721Enumera
      */
     function initialize(address _owner) public initializer {
         __ERC721_init("Stroom Activation NFT", "strNFT");
-        __ERC721Enumerable_init();
         __Ownable_init(_owner);
 
         // Initialize BTCDepositAddressDeriver state
@@ -79,9 +77,10 @@ contract UserActivator is Initializable, BTCDepositAddressDeriver, ERC721Enumera
         uint256 tokenId = _nextTokenId;
         _nextTokenId++;
 
+        _userTokenIds[_userAddress] = tokenId;
         _safeMint(_userAddress, tokenId);
 
-        emit UserAddressActivated(_userAddress);
+        emit UserAddressActivated(_userAddress); // TODO: should we emit the token ID?
     }
 
     /**
@@ -108,13 +107,7 @@ contract UserActivator is Initializable, BTCDepositAddressDeriver, ERC721Enumera
      * @return The NFT token ID (0 if user is not activated)
      */
     function getUserTokenId(address userAddress) public view returns (uint256) {
-        uint256 balance = balanceOf(userAddress);
-        if (balance == 0) {
-            return 0;
-        }
-
-        // User has exactly 1 NFT, get the token ID
-        return tokenOfOwnerByIndex(userAddress, 0);
+        return _userTokenIds[userAddress];
     }
 
     /**
@@ -133,11 +126,7 @@ contract UserActivator is Initializable, BTCDepositAddressDeriver, ERC721Enumera
      * @notice Override to make tokens non-transferable and non-burnable (soulbound)
      * @dev Only minting is allowed. Transfers and burns are blocked to preserve BTC address mapping
      */
-    function _update(address to, uint256 tokenId, address auth)
-        internal
-        override(ERC721EnumerableUpgradeable)
-        returns (address)
-    {
+    function _update(address to, uint256 tokenId, address auth) internal override(ERC721Upgradeable) returns (address) {
         address previousOwner = super._update(to, tokenId, auth);
 
         // Only allow minting (previousOwner == address(0))
@@ -148,13 +137,6 @@ contract UserActivator is Initializable, BTCDepositAddressDeriver, ERC721Enumera
         }
 
         return previousOwner;
-    }
-
-    /**
-     * @dev Override required by Solidity for ERC721Enumerable
-     */
-    function supportsInterface(bytes4 interfaceId) public view override(ERC721EnumerableUpgradeable) returns (bool) {
-        return super.supportsInterface(interfaceId);
     }
 
     /**
