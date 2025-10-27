@@ -5,24 +5,28 @@ pragma solidity 0.8.27;
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-import {BTCDepositAddressDeriver} from "blockchain-tools/src/BTCDepositAddressDeriver.sol";
+import {IBTCDepositAddressDeriver} from "./IBTCDepositAddressDeriver.sol";
 import {BitcoinNetworkEncoder} from "blockchain-tools/src/BitcoinNetworkEncoder.sol";
 
-contract UserActivator is Initializable, BTCDepositAddressDeriver, ERC721Upgradeable, OwnableUpgradeable {
+contract UserActivator is Initializable, ERC721Upgradeable, OwnableUpgradeable {
     error DailyActivationLimitExceeded();
     error UserAlreadyActivated();
     error TokenIsNonTransferable();
     error SeedNotSet();
     error UserNotActivated();
+    error InvalidBTCDeriverAddress();
 
-    event UserAddressActivated(address userETHAddress);
+    event UserAddressActivated(address userETHAddress, uint256 tokenId);
     event DailyActivationLimitUpdated(uint256 newLimit);
     event ActivationLimitsEnabled(bool enabled);
+    event BTCDeriverUpdated(address indexed newDeriver);
 
     struct DailyActivationTracker {
         uint256 count;
         uint256 lastResetDay;
     }
+
+    IBTCDepositAddressDeriver public btcDeriver;
 
     uint256 public dailyActivationLimit;
     bool public activationLimitsEnabled;
@@ -46,13 +50,14 @@ contract UserActivator is Initializable, BTCDepositAddressDeriver, ERC721Upgrade
     /**
      * @dev Initializes the contract
      * @param _owner The owner of the contract
+     * @param _btcDeriver The address of the BTC deposit address deriver contract
      */
-    function initialize(address _owner) public initializer {
+    function initialize(address _owner, address _btcDeriver) public initializer {
         __ERC721_init("Stroom Activation NFT", "strNFT");
         __Ownable_init(_owner);
 
-        // Initialize BTCDepositAddressDeriver state
-        wasSeedSet = false;
+        if (_btcDeriver == address(0)) revert InvalidBTCDeriverAddress();
+        btcDeriver = IBTCDepositAddressDeriver(_btcDeriver);
 
         // Initialize UserActivator state
         dailyActivationLimit = 100;
@@ -62,13 +67,12 @@ contract UserActivator is Initializable, BTCDepositAddressDeriver, ERC721Upgrade
 
     /**
      * @dev Activates a user by minting them a non-transferable NFT
-     * @param _userAddress The address of the user to be activated
      * Emits a `UserAddressActivated` event with the user address
-     * Reverts if the user address is already activated
+     * Reverts if the user is already activated
      */
-    function activateUser(address _userAddress) public {
-        if (balanceOf(_userAddress) != 0) revert UserAlreadyActivated();
-        if (!wasSeedSet) revert SeedNotSet();
+    function activateUser() public {
+        if (balanceOf(msg.sender) != 0) revert UserAlreadyActivated();
+        if (!btcDeriver.wasSeedSet()) revert SeedNotSet();
 
         if (activationLimitsEnabled) {
             _checkAndUpdateActivationLimit();
@@ -77,19 +81,21 @@ contract UserActivator is Initializable, BTCDepositAddressDeriver, ERC721Upgrade
         uint256 tokenId = _nextTokenId;
         _nextTokenId++;
 
-        _userTokenIds[_userAddress] = tokenId;
-        _safeMint(_userAddress, tokenId);
+        _userTokenIds[msg.sender] = tokenId;
+        _safeMint(msg.sender, tokenId);
 
-        emit UserAddressActivated(_userAddress); // TODO: should we emit the token ID?
+        emit UserAddressActivated(msg.sender, tokenId);
     }
 
     /**
-     * @dev Sets the seed for the BTC deposit address deriver
-     * @param _btcAddr The BTC taproot address
-     * @param _network The network of the BTC address
+     * @notice Updates the BTC deriver contract address
+     * @param _btcDeriver The new BTC deriver contract address
+     * @dev Only the contract owner can call this function
      */
-    function setSeed(string calldata _btcAddr, BitcoinNetworkEncoder.Network _network) public override onlyOwner {
-        BTCDepositAddressDeriver.setSeed(_btcAddr, _network);
+    function setBTCDeriver(address _btcDeriver) external onlyOwner {
+        if (_btcDeriver == address(0)) revert InvalidBTCDeriverAddress();
+        btcDeriver = IBTCDepositAddressDeriver(_btcDeriver);
+        emit BTCDeriverUpdated(_btcDeriver);
     }
 
     /**
@@ -119,7 +125,7 @@ contract UserActivator is Initializable, BTCDepositAddressDeriver, ERC721Upgrade
         uint256 tokenId = getUserTokenId(userAddress);
         if (tokenId == 0) revert UserNotActivated();
 
-        return BTCDepositAddressDeriver.getBTCDepositAddress(tokenId);
+        return btcDeriver.getBTCDepositAddress(tokenId);
     }
 
     /**

@@ -10,16 +10,21 @@ import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transpa
 
 contract UserActivatorTest is Test {
     UserActivator public deriver;
+    BTCDepositAddressDeriver public btcDeriver;
     address public owner;
 
     function setUp() public {
         owner = address(this);
 
+        // Deploy BTCDepositAddressDeriver with owner (admin will call setSeed directly)
+        btcDeriver = new BTCDepositAddressDeriver(owner);
+
         // Deploy UserActivator implementation
         UserActivator activatorImpl = new UserActivator();
 
         // Deploy UserActivator proxy
-        bytes memory activatorData = abi.encodeWithSelector(UserActivator.initialize.selector, owner);
+        bytes memory activatorData =
+            abi.encodeWithSelector(UserActivator.initialize.selector, owner, address(btcDeriver));
         TransparentUpgradeableProxy activatorProxy =
             new TransparentUpgradeableProxy(address(activatorImpl), owner, activatorData);
 
@@ -27,16 +32,17 @@ contract UserActivatorTest is Test {
     }
 
     function testUserActivation() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
         address user = 0x1EaCa1277BcDFa83E60658D8938B3D63cD3E63C1;
 
-        vm.expectEmit(address(deriver));
-        emit UserActivator.UserAddressActivated(user);
+        vm.expectEmit(true, true, true, true, address(deriver));
+        emit UserActivator.UserAddressActivated(user, 1);
 
-        deriver.activateUser(user);
+        vm.prank(user);
+        deriver.activateUser();
 
         assertEq(deriver.balanceOf(user), 1, "User should have 1 NFT");
         assertEq(deriver.getUserTokenId(user), 1, "User should have token ID 1");
@@ -53,16 +59,17 @@ contract UserActivatorTest is Test {
     }
 
     function testUserActivationSimnet() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "sb1p5z8wl5tu7m0d79vzqqsl9gu0x4fkjug857fusx4fl4kfgwh5j25sxv5dv3", BitcoinNetworkEncoder.Network.Simnet
         );
 
         address user = 0x1EaCa1277BcDFa83E60658D8938B3D63cD3E63C1;
 
-        vm.expectEmit(address(deriver));
-        emit UserActivator.UserAddressActivated(user);
+        vm.expectEmit(true, true, true, true, address(deriver));
+        emit UserActivator.UserAddressActivated(user, 1);
 
-        deriver.activateUser(user);
+        vm.prank(user);
+        deriver.activateUser();
 
         assertEq(deriver.balanceOf(user), 1, "User should have 1 NFT");
         assertEq(deriver.getUserTokenId(user), 1, "User should have token ID 1");
@@ -77,23 +84,22 @@ contract UserActivatorTest is Test {
         vm.startPrank(notOwner);
 
         vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, notOwner));
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
         vm.stopPrank();
     }
 
-    function testCannotBypassOwnerCheckWithBaseContract() public {
+    function testCannotBypassOwnerCheckWithDirectBTCDeriverCall() public {
         address notOwner = address(0x123);
 
         vm.startPrank(notOwner);
 
-        // An attempt to bypass the check by casting to a base type
-        BTCDepositAddressDeriver baseContract = BTCDepositAddressDeriver(address(deriver));
-
+        // An attempt to call btcDeriver directly (it has no access control)
+        // But UserActivator.setSeed() should still be protected by onlyOwner
         vm.expectRevert(abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, notOwner));
-        baseContract.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
@@ -102,20 +108,21 @@ contract UserActivatorTest is Test {
 
     function testOwnerCanSetSeed() public {
         // By default, in tests, msg.sender is the owner
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
         // Check that the seed is set
-        assertTrue(deriver.wasSeedSet());
-        assertEq(deriver.btcAddr(), "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3");
+        assertTrue(btcDeriver.wasSeedSet());
+        assertEq(btcDeriver.btcAddr(), "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3");
     }
 
     function testUserActivationFailsIfSeedNotSet() public {
         address user = 0x1EaCa1277BcDFa83E60658D8938B3D63cD3E63C1;
 
         vm.expectRevert(UserActivator.SeedNotSet.selector);
-        deriver.activateUser(user);
+        vm.prank(user);
+        deriver.activateUser();
     }
 
     function testSetDailyActivationLimit() public {
@@ -155,14 +162,15 @@ contract UserActivatorTest is Test {
     }
 
     function testActivateUserWithLimitsDisabled() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
         deriver.setActivationLimitsEnabled(false);
 
         for (uint160 i = 1; i <= 150; i++) {
-            deriver.activateUser(address(i));
+            vm.prank(address(i));
+            deriver.activateUser();
         }
 
         for (uint160 i = 1; i <= 150; i++) {
@@ -171,14 +179,15 @@ contract UserActivatorTest is Test {
     }
 
     function testActivateUserWithinLimit() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
         assertEq(deriver.getRemainingActivationLimit(), 100, "Should have full limit");
 
         for (uint160 i = 1; i <= 50; i++) {
-            deriver.activateUser(address(i));
+            vm.prank(address(i));
+            deriver.activateUser();
         }
 
         assertEq(deriver.getRemainingActivationLimit(), 50, "Should have half limit left");
@@ -186,32 +195,36 @@ contract UserActivatorTest is Test {
     }
 
     function testActivateUserExceedsLimit() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
         for (uint160 i = 1; i <= 100; i++) {
-            deriver.activateUser(address(i));
+            vm.prank(address(i));
+            deriver.activateUser();
         }
 
         vm.expectRevert(UserActivator.DailyActivationLimitExceeded.selector);
-        deriver.activateUser(address(uint160(101)));
+        vm.prank(address(uint160(101)));
+        deriver.activateUser();
     }
 
     function testActivationLimitResetsNextDay() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
         for (uint160 i = 1; i <= 100; i++) {
-            deriver.activateUser(address(i));
+            vm.prank(address(i));
+            deriver.activateUser();
         }
 
         assertEq(deriver.getRemainingActivationLimit(), 0, "Limit should be exhausted");
         assertEq(deriver.getUsedActivationCount(), 100);
 
         vm.expectRevert(UserActivator.DailyActivationLimitExceeded.selector);
-        deriver.activateUser(address(uint160(101)));
+        vm.prank(address(uint160(101)));
+        deriver.activateUser();
 
         vm.warp(block.timestamp + 1 days + 1);
 
@@ -219,7 +232,8 @@ contract UserActivatorTest is Test {
         assertEq(deriver.getUsedActivationCount(), 0, "Used count should be reset");
 
         for (uint160 i = 101; i <= 150; i++) {
-            deriver.activateUser(address(i));
+            vm.prank(address(i));
+            deriver.activateUser();
         }
 
         assertEq(deriver.getRemainingActivationLimit(), 50);
@@ -237,22 +251,24 @@ contract UserActivatorTest is Test {
     }
 
     function testCustomActivationLimit() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
         deriver.setDailyActivationLimit(10);
 
         for (uint160 i = 1; i <= 10; i++) {
-            deriver.activateUser(address(i));
+            vm.prank(address(i));
+            deriver.activateUser();
         }
 
         vm.expectRevert(UserActivator.DailyActivationLimitExceeded.selector);
-        deriver.activateUser(address(uint160(11)));
+        vm.prank(address(uint160(11)));
+        deriver.activateUser();
     }
 
     function testIsActivated() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
@@ -260,20 +276,22 @@ contract UserActivatorTest is Test {
 
         assertFalse(deriver.isActivated(user), "User should not be activated");
 
-        deriver.activateUser(user);
+        vm.prank(user);
+        deriver.activateUser();
 
         assertTrue(deriver.isActivated(user), "User should be activated");
     }
 
     function testNFTIsNonTransferable() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
         address alice = address(0x1);
         address bob = address(0x2);
 
-        deriver.activateUser(alice);
+        vm.prank(alice);
+        deriver.activateUser();
         uint256 tokenId = deriver.getUserTokenId(alice);
 
         assertEq(tokenId, 1, "Alice should have token ID 1");
@@ -284,13 +302,14 @@ contract UserActivatorTest is Test {
     }
 
     function testNFTIsNonBurnable() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
         address alice = address(0x1);
 
-        deriver.activateUser(alice);
+        vm.prank(alice);
+        deriver.activateUser();
         uint256 tokenId = deriver.getUserTokenId(alice);
         string memory btcAddress = deriver.getUserBTCAddress(alice);
 
@@ -305,21 +324,23 @@ contract UserActivatorTest is Test {
     }
 
     function testUserCanOnlyHaveOneNFT() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
         address user = address(0x1);
 
-        deriver.activateUser(user);
+        vm.prank(user);
+        deriver.activateUser();
         assertEq(deriver.balanceOf(user), 1, "User should have 1 NFT");
 
         vm.expectRevert(UserActivator.UserAlreadyActivated.selector);
-        deriver.activateUser(user);
+        vm.prank(user);
+        deriver.activateUser();
     }
 
     function testMultipleUsersGetDifferentTokenIds() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
@@ -329,9 +350,12 @@ contract UserActivatorTest is Test {
         address bob = address(0x2);
         address charlie = address(0x3);
 
-        deriver.activateUser(alice);
-        deriver.activateUser(bob);
-        deriver.activateUser(charlie);
+        vm.prank(alice);
+        deriver.activateUser();
+        vm.prank(bob);
+        deriver.activateUser();
+        vm.prank(charlie);
+        deriver.activateUser();
 
         assertEq(deriver.getUserTokenId(alice), 1, "Alice should have token ID 1");
         assertEq(deriver.getUserTokenId(bob), 2, "Bob should have token ID 2");
@@ -351,7 +375,7 @@ contract UserActivatorTest is Test {
     }
 
     function testUpgradePreservesState() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
@@ -361,8 +385,10 @@ contract UserActivatorTest is Test {
         address alice = address(0x1);
         address bob = address(0x2);
 
-        deriver.activateUser(alice);
-        deriver.activateUser(bob);
+        vm.prank(alice);
+        deriver.activateUser();
+        vm.prank(bob);
+        deriver.activateUser();
 
         uint256 aliceTokenId = deriver.getUserTokenId(alice);
         uint256 bobTokenId = deriver.getUserTokenId(bob);
@@ -381,9 +407,9 @@ contract UserActivatorTest is Test {
         );
         assertTrue(success, "Upgrade should succeed");
 
-        assertEq(deriver.wasSeedSet(), true, "Seed should still be set");
+        assertEq(btcDeriver.wasSeedSet(), true, "Seed should still be set");
         assertEq(
-            deriver.btcAddr(),
+            btcDeriver.btcAddr(),
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3",
             "BTC addr should be preserved"
         );
@@ -398,7 +424,8 @@ contract UserActivatorTest is Test {
         assertEq(deriver.getUserBTCAddress(bob), bobBtc, "Bob BTC address should be preserved");
 
         address charlie = address(0x3);
-        deriver.activateUser(charlie);
+        vm.prank(charlie);
+        deriver.activateUser();
         assertTrue(deriver.isActivated(charlie), "Should be able to activate new users after upgrade");
     }
 
@@ -416,18 +443,19 @@ contract UserActivatorTest is Test {
         assertTrue(success, "Upgrade should succeed");
 
         vm.expectRevert();
-        deriver.initialize(owner);
+        deriver.initialize(owner, address(btcDeriver));
     }
 
     function testUpgradeTokenIdCounterContinues() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
         deriver.setActivationLimitsEnabled(false);
 
         for (uint160 i = 1; i <= 5; i++) {
-            deriver.activateUser(address(i));
+            vm.prank(address(i));
+            deriver.activateUser();
         }
 
         assertEq(deriver.getUserTokenId(address(5)), 5, "5th user should have token ID 5");
@@ -444,18 +472,20 @@ contract UserActivatorTest is Test {
         assertTrue(success);
 
         address newUser = address(0x6);
-        deriver.activateUser(newUser);
+        vm.prank(newUser);
+        deriver.activateUser();
 
         assertEq(deriver.getUserTokenId(newUser), 6, "New user should get token ID 6 (counter continued)");
     }
 
     function testUpgradeWithActiveLimits() public {
-        deriver.setSeed(
+        btcDeriver.setSeed(
             "tb1p7g532zgvuzv8fz3hs02wvn2almqh8qyvz4xdr564nannkxh28kdq62ewy3", BitcoinNetworkEncoder.Network.Testnet
         );
 
         for (uint160 i = 1; i <= 30; i++) {
-            deriver.activateUser(address(i));
+            vm.prank(address(i));
+            deriver.activateUser();
         }
 
         assertEq(deriver.getUsedActivationCount(), 30, "Should have 30 activations used");
@@ -476,7 +506,8 @@ contract UserActivatorTest is Test {
         assertEq(deriver.getRemainingActivationLimit(), 70, "Remaining limit should be preserved");
 
         for (uint160 i = 31; i <= 50; i++) {
-            deriver.activateUser(address(i));
+            vm.prank(address(i));
+            deriver.activateUser();
         }
 
         assertEq(deriver.getUsedActivationCount(), 50, "Should have 50 total after more activations");
