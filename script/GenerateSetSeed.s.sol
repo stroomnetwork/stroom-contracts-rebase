@@ -15,8 +15,7 @@ contract GenerateSetSeedCalldataScript is Script {
     address public userActivator = vm.envAddress("APP_ETH_USER_ACTIVATOR_ADDRESS");
     address public validatorRegistry = vm.envAddress("APP_ETH_VALIDATOR_REGISTRY_ADDRESS");
 
-    string public taprootAddress1 = vm.envString("TAPROOT_ADDRESS1");
-    string public taprootAddress2 = vm.envString("TAPROOT_ADDRESS2");
+    string public taprootAddress = vm.envString("TAPROOT_ADDRESS");
     bytes32 public jointPublicKey = vm.envBytes32("JOINT_PUBLIC_KEY");
     uint8 public network = uint8(vm.envUint("BITCOIN_NETWORK"));
 
@@ -24,28 +23,15 @@ contract GenerateSetSeedCalldataScript is Script {
         console.log("=== GENERATION OF CALLDATA FOR SETSEED OPERATIONS ===\n");
 
         bytes memory setSeedCalldata = abi.encodeWithSelector(
-            BTCDepositAddressDeriver.setSeed.selector,
-            taprootAddress1,
-            taprootAddress2,
-            BitcoinNetworkEncoder.Network(network)
+            BTCDepositAddressDeriver.setSeed.selector, taprootAddress, BitcoinNetworkEncoder.Network(network)
         );
 
         _printCalldataInfo(
-            "setSeed(string,string,uint8)",
+            "setSeed(string,uint8)",
             userActivator,
             setSeedCalldata,
             keccak256("SetSeed2025"),
-            string.concat(
-                "\n  taprootAddress1: ",
-                taprootAddress1,
-                "\n",
-                "  taprootAddress2: ",
-                taprootAddress2,
-                "\n",
-                "  network: ",
-                vm.toString(network),
-                "\n"
-            )
+            string.concat("\n  taprootAddress: ", taprootAddress, "\n", "  network: ", vm.toString(network), "\n")
         );
 
         console.log("\n=== GENERATION OF CALLDATA FOR SETJOINTKEY OPERATIONS ===\n");

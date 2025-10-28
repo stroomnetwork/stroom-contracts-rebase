@@ -4,27 +4,36 @@ pragma solidity 0.8.27;
 
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {BTCDepositAddressDeriver} from "blockchain-tools/src/BTCDepositAddressDeriver.sol";
+import {ERC721Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import {IBTCDepositAddressDeriver} from "./IBTCDepositAddressDeriver.sol";
 import {BitcoinNetworkEncoder} from "blockchain-tools/src/BitcoinNetworkEncoder.sol";
 
-contract UserActivator is Initializable, BTCDepositAddressDeriver, OwnableUpgradeable {
+contract UserActivator is Initializable, ERC721Upgradeable, OwnableUpgradeable {
     error DailyActivationLimitExceeded();
+    error UserAlreadyActivated();
+    error TokenIsNonTransferable();
+    error SeedNotSet();
+    error UserNotActivated();
+    error InvalidBTCDeriverAddress();
 
-    event UserAddressActivated(address userETHAddress);
+    event UserAddressActivated(address userETHAddress, uint256 tokenId);
     event DailyActivationLimitUpdated(uint256 newLimit);
     event ActivationLimitsEnabled(bool enabled);
+    event BTCDeriverUpdated(address indexed newDeriver);
 
     struct DailyActivationTracker {
         uint256 count;
         uint256 lastResetDay;
     }
 
-    // Mapping of activated addresses.
-    mapping(address => bool) public activatedAddresses;
+    IBTCDepositAddressDeriver public btcDeriver;
 
     uint256 public dailyActivationLimit;
     bool public activationLimitsEnabled;
     DailyActivationTracker private dailyActivations;
+
+    uint256 private _nextTokenId;
+    mapping(address => uint256) private _userTokenIds;
 
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
@@ -41,56 +50,99 @@ contract UserActivator is Initializable, BTCDepositAddressDeriver, OwnableUpgrad
     /**
      * @dev Initializes the contract
      * @param _owner The owner of the contract
+     * @param _btcDeriver The address of the BTC deposit address deriver contract
      */
-    function initialize(address _owner) public initializer {
+    function initialize(address _owner, address _btcDeriver) public initializer {
+        __ERC721_init("Stroom Activation NFT", "strNFT");
         __Ownable_init(_owner);
 
-        // Initialize BTCDepositAddressDeriver state
-        wasSeedSet = false;
+        if (_btcDeriver == address(0)) revert InvalidBTCDeriverAddress();
+        btcDeriver = IBTCDepositAddressDeriver(_btcDeriver);
 
         // Initialize UserActivator state
         dailyActivationLimit = 100;
         activationLimitsEnabled = true; // enabled by default
+        _nextTokenId = 1; // Start from token ID 1
     }
 
     /**
-     * @dev Activates a user by setting their address as activated.
-     * @param _userAddress The address of the user to be activated.
-     * Emits a `UserAddressActivated` event with the user address and their BTC deposit address.
-     * Reverts if the user address is already activated.
+     * @dev Activates a user by minting them a non-transferable NFT
+     * Emits a `UserAddressActivated` event with the user address
+     * Reverts if the user is already activated
      */
-    function activateUser(address _userAddress) public {
-        require(activatedAddresses[_userAddress] == false, "User is already activated");
-        require(wasSeedSet, "Seed must be set before activating users");
+    function activateUser() public {
+        if (balanceOf(msg.sender) != 0) revert UserAlreadyActivated();
+        if (!btcDeriver.wasSeedSet()) revert SeedNotSet();
 
         if (activationLimitsEnabled) {
             _checkAndUpdateActivationLimit();
         }
 
-        activatedAddresses[_userAddress] = true;
+        uint256 tokenId = _nextTokenId;
+        _nextTokenId++;
 
-        emit UserAddressActivated(_userAddress);
+        _userTokenIds[msg.sender] = tokenId;
+        _safeMint(msg.sender, tokenId);
+
+        emit UserAddressActivated(msg.sender, tokenId);
     }
 
     /**
-     * @dev Sets the seed for the BTC deposit address deriver.
-     * @param _btcAddr1 The first BTC taproot address.
-     * @param _btcAddr2 The second BTC taproot address.
-     * @param _network The network of the BTC addresses.
+     * @notice Updates the BTC deriver contract address
+     * @param _btcDeriver The new BTC deriver contract address
+     * @dev Only the contract owner can call this function
      */
-    function setSeed(string calldata _btcAddr1, string calldata _btcAddr2, BitcoinNetworkEncoder.Network _network)
-        public
-        override
-        onlyOwner
-    {
-        BTCDepositAddressDeriver.setSeed(_btcAddr1, _btcAddr2, _network);
+    function setBTCDeriver(address _btcDeriver) external onlyOwner {
+        if (_btcDeriver == address(0)) revert InvalidBTCDeriverAddress();
+        btcDeriver = IBTCDepositAddressDeriver(_btcDeriver);
+        emit BTCDeriverUpdated(_btcDeriver);
     }
 
-    function getBTCDepositAddress(address ethAddress) public view override returns (string memory) {
-        if (!activatedAddresses[ethAddress]) {
-            revert("User is not activated");
+    /**
+     * @notice Check if a user is activated
+     * @param userAddress The user's Ethereum address
+     * @return True if user is activated, false otherwise
+     */
+    function isActivated(address userAddress) public view returns (bool) {
+        return balanceOf(userAddress) > 0;
+    }
+
+    /**
+     * @notice Gets the token ID for a user address
+     * @param userAddress The user's Ethereum address
+     * @return The NFT token ID (0 if user is not activated)
+     */
+    function getUserTokenId(address userAddress) public view returns (uint256) {
+        return _userTokenIds[userAddress];
+    }
+
+    /**
+     * @notice Gets the BTC deposit address for a user
+     * @param userAddress The user's Ethereum address
+     * @return The Bitcoin deposit address
+     */
+    function getBTCDepositAddress(address userAddress) public view returns (string memory) {
+        uint256 tokenId = getUserTokenId(userAddress);
+        if (tokenId == 0) revert UserNotActivated();
+
+        return btcDeriver.getBTCDepositAddress(tokenId);
+    }
+
+    /**
+     * @notice Override to make tokens non-transferable and non-burnable (soulbound)
+     * @dev Only minting is allowed. Transfers and burns are blocked to preserve BTC address mapping
+     */
+    function _update(address to, uint256 tokenId, address auth) internal override(ERC721Upgradeable) returns (address) {
+        address previousOwner = super._update(to, tokenId, auth);
+
+        // Only allow minting (previousOwner == address(0))
+        // Note: to != address(0) is already validated by OpenZeppelin's _mint()
+        // Block transfers and burns (previousOwner != address(0))
+        if (previousOwner != address(0)) {
+            revert TokenIsNonTransferable();
         }
-        return BTCDepositAddressDeriver.getBTCDepositAddress(ethAddress);
+
+        return previousOwner;
     }
 
     /**

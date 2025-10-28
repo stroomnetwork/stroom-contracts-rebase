@@ -9,6 +9,7 @@ import "../src/lib/UserActivator.sol";
 import "../src/lib/ValidatorRegistry.sol";
 import "../src/converters/wBTCConverterImmutable.sol";
 import "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
+import "../lib/blockchain-tools/src/BTCDepositAddressDeriver.sol";
 
 import {Strings as OpenZeppelinStrings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
@@ -45,11 +46,15 @@ contract DeployScript is Script {
         // Deploy wstrBTC
         wstrBTC wstrBtcContract = new wstrBTC(address(strBtcContract));
 
+        // Deploy BTCDepositAddressDeriver with admin as owner (admin will call setSeed directly)
+        BTCDepositAddressDeriver btcDeriver = new BTCDepositAddressDeriver(admin);
+
         // Deploy UserActivator implementation
         UserActivator activatorImplementation = new UserActivator();
 
         // Deploy UserActivator proxy
-        bytes memory activatorData = abi.encodeWithSelector(UserActivator.initialize.selector, admin);
+        bytes memory activatorData =
+            abi.encodeWithSelector(UserActivator.initialize.selector, admin, address(btcDeriver));
         TransparentUpgradeableProxy activatorProxy =
             new TransparentUpgradeableProxy(address(activatorImplementation), admin, activatorData);
         UserActivator activator = UserActivator(address(activatorProxy));
@@ -105,6 +110,11 @@ contract DeployScript is Script {
             string.concat(
                 "APP_ETH_USER_ACTIVATOR_PROXY_ADMIN_ADDRESS=",
                 OpenZeppelinStrings.toHexString(uint256(uint160(activatorProxyAdmin)))
+            )
+        );
+        console.logString(
+            string.concat(
+                "APP_ETH_BTC_DERIVER_ADDRESS=", OpenZeppelinStrings.toHexString(uint256(uint160(address(btcDeriver))))
             )
         );
     }

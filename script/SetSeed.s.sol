@@ -10,8 +10,7 @@ contract SetSeedScript is Script {
     uint8 private network;
     address private userActivatorContract;
     address private validatorRegistryContract;
-    string private taprootAddress1;
-    string private taprootAddress2;
+    string private taprootAddress;
     bytes32 private jointNetworkKey;
     BitcoinNetworkEncoder.Network _network;
 
@@ -20,8 +19,7 @@ contract SetSeedScript is Script {
         _network = BitcoinNetworkEncoder.Network(network);
         userActivatorContract = vm.envAddress("APP_ETH_USER_ACTIVATOR_ADDRESS");
         validatorRegistryContract = vm.envAddress("APP_ETH_VALIDATOR_REGISTRY_ADDRESS");
-        taprootAddress1 = vm.envString("TAPROOT_ADDRESS1");
-        taprootAddress2 = vm.envString("TAPROOT_ADDRESS2");
+        taprootAddress = vm.envString("TAPROOT_ADDRESS");
         jointNetworkKey = vm.envBytes32("JOINT_PUBLIC_KEY");
     }
 
@@ -31,7 +29,7 @@ contract SetSeedScript is Script {
         BTCDepositAddressDeriver activator = BTCDepositAddressDeriver(userActivatorContract);
         ValidatorRegistry vr = ValidatorRegistry(validatorRegistryContract);
 
-        activator.setSeed(taprootAddress1, taprootAddress2, _network);
+        activator.setSeed(taprootAddress, _network);
         vr.setJointPublicKey(jointNetworkKey);
 
         vm.stopBroadcast();
