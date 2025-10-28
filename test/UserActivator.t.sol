@@ -47,7 +47,7 @@ contract UserActivatorTest is Test {
         assertEq(deriver.balanceOf(user), 1, "User should have 1 NFT");
         assertEq(deriver.getUserTokenId(user), 1, "User should have token ID 1");
 
-        string memory btcAddr = deriver.getUserBTCAddress(user);
+        string memory btcAddr = deriver.getBTCDepositAddress(user);
         assertTrue(bytes(btcAddr).length > 0, "BTC address should be generated");
     }
 
@@ -55,7 +55,7 @@ contract UserActivatorTest is Test {
         address user = 0x1EaCa1277BcDFa83E60658D8938B3D63cD3E63C1;
 
         vm.expectRevert(UserActivator.UserNotActivated.selector);
-        deriver.getUserBTCAddress(user);
+        deriver.getBTCDepositAddress(user);
     }
 
     function testUserActivationSimnet() public {
@@ -74,7 +74,7 @@ contract UserActivatorTest is Test {
         assertEq(deriver.balanceOf(user), 1, "User should have 1 NFT");
         assertEq(deriver.getUserTokenId(user), 1, "User should have token ID 1");
 
-        string memory btcAddr = deriver.getUserBTCAddress(user);
+        string memory btcAddr = deriver.getBTCDepositAddress(user);
         assertTrue(bytes(btcAddr).length > 0, "BTC address should be generated");
     }
 
@@ -311,7 +311,7 @@ contract UserActivatorTest is Test {
         vm.prank(alice);
         deriver.activateUser();
         uint256 tokenId = deriver.getUserTokenId(alice);
-        string memory btcAddress = deriver.getUserBTCAddress(alice);
+        string memory btcAddress = deriver.getBTCDepositAddress(alice);
 
         assertEq(tokenId, 1, "Alice should have token ID 1");
 
@@ -320,7 +320,7 @@ contract UserActivatorTest is Test {
         deriver.transferFrom(alice, address(0), tokenId);
 
         assertTrue(deriver.isActivated(alice), "Alice should still be activated");
-        assertEq(deriver.getUserBTCAddress(alice), btcAddress, "BTC address should remain the same");
+        assertEq(deriver.getBTCDepositAddress(alice), btcAddress, "BTC address should remain the same");
     }
 
     function testUserCanOnlyHaveOneNFT() public {
@@ -361,9 +361,9 @@ contract UserActivatorTest is Test {
         assertEq(deriver.getUserTokenId(bob), 2, "Bob should have token ID 2");
         assertEq(deriver.getUserTokenId(charlie), 3, "Charlie should have token ID 3");
 
-        string memory btcAlice = deriver.getUserBTCAddress(alice);
-        string memory btcBob = deriver.getUserBTCAddress(bob);
-        string memory btcCharlie = deriver.getUserBTCAddress(charlie);
+        string memory btcAlice = deriver.getBTCDepositAddress(alice);
+        string memory btcBob = deriver.getBTCDepositAddress(bob);
+        string memory btcCharlie = deriver.getBTCDepositAddress(charlie);
 
         assertFalse(
             keccak256(bytes(btcAlice)) == keccak256(bytes(btcBob)), "Alice and Bob should have different BTC addresses"
@@ -392,8 +392,8 @@ contract UserActivatorTest is Test {
 
         uint256 aliceTokenId = deriver.getUserTokenId(alice);
         uint256 bobTokenId = deriver.getUserTokenId(bob);
-        string memory aliceBtc = deriver.getUserBTCAddress(alice);
-        string memory bobBtc = deriver.getUserBTCAddress(bob);
+        string memory aliceBtc = deriver.getBTCDepositAddress(alice);
+        string memory bobBtc = deriver.getBTCDepositAddress(bob);
 
         UserActivator newImplementation = new UserActivator();
 
@@ -420,8 +420,8 @@ contract UserActivatorTest is Test {
         assertTrue(deriver.isActivated(bob), "Bob should still be activated");
         assertEq(deriver.getUserTokenId(alice), aliceTokenId, "Alice token ID should be preserved");
         assertEq(deriver.getUserTokenId(bob), bobTokenId, "Bob token ID should be preserved");
-        assertEq(deriver.getUserBTCAddress(alice), aliceBtc, "Alice BTC address should be preserved");
-        assertEq(deriver.getUserBTCAddress(bob), bobBtc, "Bob BTC address should be preserved");
+        assertEq(deriver.getBTCDepositAddress(alice), aliceBtc, "Alice BTC address should be preserved");
+        assertEq(deriver.getBTCDepositAddress(bob), bobBtc, "Bob BTC address should be preserved");
 
         address charlie = address(0x3);
         vm.prank(charlie);

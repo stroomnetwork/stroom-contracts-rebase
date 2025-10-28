@@ -121,7 +121,7 @@ contract UserActivator is Initializable, ERC721Upgradeable, OwnableUpgradeable {
      * @param userAddress The user's Ethereum address
      * @return The Bitcoin deposit address
      */
-    function getUserBTCAddress(address userAddress) public view returns (string memory) {
+    function getBTCDepositAddress(address userAddress) public view returns (string memory) {
         uint256 tokenId = getUserTokenId(userAddress);
         if (tokenId == 0) revert UserNotActivated();
 
