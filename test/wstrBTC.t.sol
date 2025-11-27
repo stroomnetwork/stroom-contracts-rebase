@@ -357,13 +357,11 @@ contract WstrBTCTest is Test {
         );
     }
 
-    function testFuzzIntegrationDepositRedeemWithRebaseForTwoUsers(
-        uint256 aliceDepositAmount,
-        uint256 bobDepositAmount
-    ) public {
-        strBTC.MintInvoice memory invoice = strBTC.MintInvoice({
-            btcDepositId: keccak256("deposit2"), recipient: bob, amount: 15 * BTC
-        });
+    function testFuzzIntegrationDepositRedeemWithRebaseForTwoUsers(uint256 aliceDepositAmount, uint256 bobDepositAmount)
+        public
+    {
+        strBTC.MintInvoice memory invoice =
+            strBTC.MintInvoice({btcDepositId: keccak256("deposit2"), recipient: bob, amount: 15 * BTC});
         bytes memory signature =
             hex"afbfdb08ce06fac74578357564a061daf21b5e9e8829b052173c6de7da2db52dbe5cb8ced766d4e3d8c7a0cca7e944f29de838d36673f2b3c5ae3793c8f7d866";
 

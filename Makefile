@@ -48,24 +48,28 @@ export-abi: build ## Export contracts ABI and bytecode for strBTC, wstrBTC
 	cat ./out/ValidatorRegistry.sol/ValidatorRegistry.json | jq -r '.bytecode.object' | sed 's/0x//' > ./out/ValidatorRegistry.bin
 	cat ./out/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json | jq -r '.abi' > ./out/TransparentUpgradeableProxy.abi.json
 	cat ./out/TransparentUpgradeableProxy.sol/TransparentUpgradeableProxy.json | jq -r '.bytecode.object' | sed 's/0x//' > ./out/TransparentUpgradeableProxy.bin
+	cat ./out/BTCDepositAddressDeriver.sol/BTCDepositAddressDeriver.json | jq -r '.abi' > ./out/BTCDepositAddressDeriver.abi.json
+	cat ./out/BTCDepositAddressDeriver.sol/BTCDepositAddressDeriver.json | jq -r '.bytecode.object' | sed 's/0x//' > ./out/BTCDepositAddressDeriver.bin
 
 ## Go Bindings
 .PHONY: go-gen
 go-gen: build export-abi ## Generate Go bindings
-	abigen --abi ./out/strBTC.abi.json --bin ./out/strBTC.bin --lang go --pkg ${GO_ABI_DIR} --type StrBtc --out ./${GO_ABI_DIR}/strbtc.go
-	abigen --abi ./out/wstrBTC.abi.json --bin ./out/wstrBTC.bin --lang go --pkg ${GO_ABI_DIR} --type WStrBtc --out ./${GO_ABI_DIR}/wstrbtc.go
-	abigen --abi ./out/UserActivator.abi.json --bin ./out/UserActivator.bin --lang go --pkg ${GO_ABI_DIR} --type UserActivator --out ./${GO_ABI_DIR}/user_activator.go
-	abigen --abi ./out/ValidatorRegistry.abi.json --bin ./out/ValidatorRegistry.bin --lang go --pkg ${GO_ABI_DIR} --type ValidatorRegistry --out ./${GO_ABI_DIR}/validator_registry.go
-	abigen --abi ./out/TransparentUpgradeableProxy.abi.json --bin ./out/TransparentUpgradeableProxy.bin --lang go --pkg ${GO_ABI_DIR} --type TransparentUpgradeableProxy --out ./${GO_ABI_DIR}/proxy.go
+	abigen --abi ./out/strBTC.abi.json --bin ./out/strBTC.bin --pkg ${GO_ABI_DIR} --type StrBtc --out ./${GO_ABI_DIR}/strbtc.go
+	abigen --abi ./out/wstrBTC.abi.json --bin ./out/wstrBTC.bin --pkg ${GO_ABI_DIR} --type WStrBtc --out ./${GO_ABI_DIR}/wstrbtc.go
+	abigen --abi ./out/UserActivator.abi.json --bin ./out/UserActivator.bin  --pkg ${GO_ABI_DIR} --type UserActivator --out ./${GO_ABI_DIR}/user_activator.go
+	abigen --abi ./out/ValidatorRegistry.abi.json --bin ./out/ValidatorRegistry.bin  --pkg ${GO_ABI_DIR} --type ValidatorRegistry --out ./${GO_ABI_DIR}/validator_registry.go
+	abigen --abi ./out/TransparentUpgradeableProxy.abi.json --bin ./out/TransparentUpgradeableProxy.bin --pkg ${GO_ABI_DIR} --type TransparentUpgradeableProxy --out ./${GO_ABI_DIR}/proxy.go
+	abigen --abi ./out/BTCDepositAddressDeriver.abi.json --bin ./out/BTCDepositAddressDeriver.bin --pkg ${GO_ABI_DIR} --type BTCDepositAddressDeriver --out ./${GO_ABI_DIR}/btc_deposit_address_deriver.go
 
 .PHONY: go-gen-test
 go-gen-test: build export-abi ## Verify Go bindings
 	mkdir -p ./build/tmp/${GO_ABI_DIR}
-	abigen --abi ./out/strBTC.abi.json --bin ./out/strBTC.bin --lang go --pkg ${GO_ABI_DIR} --type StrBtc --out ./build/tmp/${GO_ABI_DIR}/strbtc.go
-	abigen --abi ./out/wstrBTC.abi.json --bin ./out/wstrBTC.bin --lang go --pkg ${GO_ABI_DIR} --type WStrBtc --out ./build/tmp/${GO_ABI_DIR}/wstrbtc.go
-	abigen --abi ./out/UserActivator.abi.json --bin ./out/UserActivator.bin --lang go --pkg ${GO_ABI_DIR} --type UserActivator --out ./build/tmp/${GO_ABI_DIR}/user_activator.go
-	abigen --abi ./out/ValidatorRegistry.abi.json --bin ./out/ValidatorRegistry.bin --lang go --pkg ${GO_ABI_DIR} --type ValidatorRegistry --out ./build/tmp/${GO_ABI_DIR}/validator_registry.go
-	abigen --abi ./out/TransparentUpgradeableProxy.abi.json --bin ./out/TransparentUpgradeableProxy.bin --lang go --pkg ${GO_ABI_DIR} --type TransparentUpgradeableProxy --out ./build/tmp/${GO_ABI_DIR}/proxy.go
+	abigen --abi ./out/strBTC.abi.json --bin ./out/strBTC.bin --pkg ${GO_ABI_DIR} --type StrBtc --out ./build/tmp/${GO_ABI_DIR}/strbtc.go
+	abigen --abi ./out/wstrBTC.abi.json --bin ./out/wstrBTC.bin --pkg ${GO_ABI_DIR} --type WStrBtc --out ./build/tmp/${GO_ABI_DIR}/wstrbtc.go
+	abigen --abi ./out/UserActivator.abi.json --bin ./out/UserActivator.bin --pkg ${GO_ABI_DIR} --type UserActivator --out ./build/tmp/${GO_ABI_DIR}/user_activator.go
+	abigen --abi ./out/ValidatorRegistry.abi.json --bin ./out/ValidatorRegistry.bin --pkg ${GO_ABI_DIR} --type ValidatorRegistry --out ./build/tmp/${GO_ABI_DIR}/validator_registry.go
+	abigen --abi ./out/TransparentUpgradeableProxy.abi.json --bin ./out/TransparentUpgradeableProxy.bin --pkg ${GO_ABI_DIR} --type TransparentUpgradeableProxy --out ./build/tmp/${GO_ABI_DIR}/proxy.go
+	abigen --abi ./out/BTCDepositAddressDeriver.abi.json --bin ./out/BTCDepositAddressDeriver.bin --pkg ${GO_ABI_DIR} --type BTCDepositAddressDeriver --out ./build/tmp/${GO_ABI_DIR}/btc_deposit_address_deriver.go
 	go test -v ./${GO_ABI_DIR}
 
 ## Script & Deploy. Uses environment variables that can be specified by '.env' file
