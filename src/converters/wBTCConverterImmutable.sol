@@ -61,6 +61,9 @@ contract WBTCConverterImmutable {
      * @return The net amount currently minted (totalMinted - totalBurned)
      */
     function currentlyMinted() public view returns (uint256) {
+        if (totalBurned >= totalMinted) {
+            return 0;
+        }
         return totalMinted - totalBurned;
     }
 

@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {BitcoinNetworkEncoder} from "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
-import "../src/strBTC.sol";
+import {strBTC} from "../src/strBTC.sol";
 import "../src/converters/cbBTCConverterImmutable.sol";
 import "../src/lib/ValidatorRegistry.sol";
 
@@ -265,6 +265,140 @@ contract CBBTCConverterTest is Test {
         vm.expectEmit(true, false, false, true);
         emit CBBTCConverterImmutable.CBBTCConverted(user1, cbbtcAmount, expectedStrBTC);
         cbbtcConverter.convertCBBTCToStrBTC(cbbtcAmount);
+        vm.stopPrank();
+    }
+
+    function testCurrentlyMintedHandlesUnderflow() public {
+        uint256 cbbtcAmount = 100 * 10 ** 8; // 100 cbBTC
+        uint256 expectedStrBTC = (cbbtcAmount * 999) / 1000; // 99.9 strBTC
+
+        vm.startPrank(user1);
+        cbbtc.approve(address(cbbtcConverter), cbbtcAmount);
+        uint256 strbtcReceived = cbbtcConverter.convertCBBTCToStrBTC(cbbtcAmount);
+        vm.stopPrank();
+
+        assertEq(strbtcReceived, expectedStrBTC);
+        assertEq(cbbtcConverter.totalMinted(), expectedStrBTC);
+        assertEq(cbbtcConverter.totalBurned(), 0);
+        assertEq(cbbtcConverter.currentlyMinted(), expectedStrBTC);
+        assertEq(cbbtc.balanceOf(address(cbbtcConverter)), cbbtcAmount);
+
+        uint256 strbtcToBurn = cbbtcAmount; // Burn 100M (more than the 99.9M received)
+
+        // Converter already has enough cbBTC from the first conversion (100M cbBTC)
+        // Give user additional strBTC to burn (from external source, simulating real scenario)
+        vm.startPrank(owner);
+        strbtc.addConverter(user2);
+        vm.stopPrank();
+
+        // User needs additional strBTC to burn more than they received
+        uint256 additionalStrbtcNeeded = strbtcToBurn - expectedStrBTC; // 0.1M strBTC
+        vm.startPrank(user2);
+        strbtc.converterMint(user1, additionalStrbtcNeeded);
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        strbtc.approve(address(cbbtcConverter), strbtcToBurn);
+        cbbtcConverter.convertStrBTCToCBBTC(strbtcToBurn);
+        vm.stopPrank();
+
+        assertGt(cbbtcConverter.totalBurned(), cbbtcConverter.totalMinted());
+        assertEq(cbbtcConverter.currentlyMinted(), 0);
+
+        uint256 additionalStrbtcToBurn = 10 * 10 ** 6; // 10k strBTC
+        uint256 additionalCbbtcNeeded = (additionalStrbtcToBurn * 999) / 1000;
+
+        MockCBBTC(address(cbbtc)).mint(address(cbbtcConverter), additionalCbbtcNeeded);
+
+        // Give user additional strBTC to burn
+        vm.startPrank(user2);
+        strbtc.converterMint(user1, additionalStrbtcToBurn);
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        strbtc.approve(address(cbbtcConverter), additionalStrbtcToBurn);
+        cbbtcConverter.convertStrBTCToCBBTC(additionalStrbtcToBurn);
+        vm.stopPrank();
+
+        assertGt(cbbtcConverter.totalBurned(), cbbtcConverter.totalMinted());
+
+        uint256 currentlyMinted = cbbtcConverter.currentlyMinted();
+        assertEq(currentlyMinted, 0, "currentlyMinted should return 0 when totalBurned >= totalMinted");
+
+        uint256 newCbbtcAmount = 10 * 10 ** 8; // 10 cbBTC
+        uint256 newExpectedStrBTC = (newCbbtcAmount * 999) / 1000;
+
+        vm.startPrank(user2);
+        cbbtc.approve(address(cbbtcConverter), newCbbtcAmount);
+        uint256 newStrbtcReceived = cbbtcConverter.convertCBBTCToStrBTC(newCbbtcAmount);
+        vm.stopPrank();
+
+        assertEq(newStrbtcReceived, newExpectedStrBTC);
+
+        uint256 expectedCurrentlyMinted = cbbtcConverter.totalMinted() - cbbtcConverter.totalBurned();
+        assertEq(cbbtcConverter.currentlyMinted(), expectedCurrentlyMinted);
+        assertGt(cbbtcConverter.currentlyMinted(), 0);
+    }
+
+    function testCurrentlyMintedWhenBurnedEqualsMinted() public {
+        uint256 cbbtcAmount = 100 * 10 ** 8;
+        uint256 expectedStrBTC = (cbbtcAmount * 999) / 1000;
+
+        vm.startPrank(user1);
+        cbbtc.approve(address(cbbtcConverter), cbbtcAmount);
+        cbbtcConverter.convertCBBTCToStrBTC(cbbtcAmount);
+        vm.stopPrank();
+
+        assertEq(cbbtcConverter.currentlyMinted(), expectedStrBTC);
+
+        vm.startPrank(user1);
+        strbtc.approve(address(cbbtcConverter), expectedStrBTC);
+        cbbtcConverter.convertStrBTCToCBBTC(expectedStrBTC);
+        vm.stopPrank();
+
+        assertEq(cbbtcConverter.totalBurned(), cbbtcConverter.totalMinted());
+        assertEq(cbbtcConverter.currentlyMinted(), 0);
+    }
+
+    function testMintingLimitAfterUnderflow() public {
+        uint256 cbbtcAmount = 100 * 10 ** 8;
+        uint256 expectedStrBTC = (cbbtcAmount * 999) / 1000;
+
+        vm.startPrank(user1);
+        cbbtc.approve(address(cbbtcConverter), cbbtcAmount);
+        cbbtcConverter.convertCBBTCToStrBTC(cbbtcAmount);
+        vm.stopPrank();
+
+        vm.startPrank(owner);
+        strbtc.addConverter(user2);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        strbtc.converterMint(address(cbbtcConverter), expectedStrBTC + 1);
+        vm.stopPrank();
+
+        vm.startPrank(address(cbbtcConverter));
+        strbtc.transfer(user1, expectedStrBTC + 1);
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        strbtc.approve(address(cbbtcConverter), expectedStrBTC + 1);
+        cbbtcConverter.convertStrBTCToCBBTC(expectedStrBTC + 1);
+        vm.stopPrank();
+
+        assertGt(cbbtcConverter.totalBurned(), cbbtcConverter.totalMinted());
+        assertEq(cbbtcConverter.currentlyMinted(), 0);
+
+        uint256 limit = cbbtcConverter.mintingLimit();
+        uint256 largeCbbtcAmount = (limit * 1000) / 999 + 1000;
+
+        MockCBBTC(address(cbbtc)).mint(user2, largeCbbtcAmount);
+
+        vm.startPrank(user2);
+        cbbtc.approve(address(cbbtcConverter), largeCbbtcAmount);
+
+        vm.expectRevert(CBBTCConverterImmutable.MintingLimitExceeded.selector);
+        cbbtcConverter.convertCBBTCToStrBTC(largeCbbtcAmount);
         vm.stopPrank();
     }
 }
