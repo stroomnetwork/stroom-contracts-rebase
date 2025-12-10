@@ -3,13 +3,13 @@ pragma solidity 0.8.27;
 
 import "forge-std/Script.sol";
 
-import "../src/strBTC.sol";
-import "../src/wstrBTC.sol";
-import "../src/lib/UserActivator.sol";
-import "../src/lib/ValidatorRegistry.sol";
-import "../src/converters/wBTCConverterImmutable.sol";
-import "../lib/blockchain-tools/src/BitcoinNetworkEncoder.sol";
-import "../lib/blockchain-tools/src/BTCDepositAddressDeriver.sol";
+import {strBTC} from "../src/strBTC.sol";
+import {wstrBTC} from "../src/wstrBTC.sol";
+import {UserActivator} from "../src/lib/UserActivator.sol";
+import {ValidatorRegistry} from "../src/lib/ValidatorRegistry.sol";
+import {WBTCConverterImmutable} from "../src/converters/wBTCConverterImmutable.sol";
+import {BitcoinNetworkEncoder} from "blockchain-tools/src/BitcoinNetworkEncoder.sol";
+import {BTCDepositAddressDeriver} from "blockchain-tools/src/BTCDepositAddressDeriver.sol";
 
 import {Strings as OpenZeppelinStrings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
